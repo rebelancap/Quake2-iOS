@@ -31,6 +31,19 @@
 
 #include "../client/sound/header/vorbis.h"
 
+#include <sys/stat.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS
+#include <dispatch/dispatch.h>
+#include <unistd.h>  // for sleep()
+#endif
+#endif
+
 
 #define MAX_HANDLES 512
 #define MAX_PAKS 100
@@ -40,6 +53,35 @@
   #define SYSTEMDIR "/usr/share/games/quake2"
  #endif
 #endif
+
+// iOS-specific filesystem code for Quake2
+// Add this AFTER all the existing includes in filesystem.c
+// This way, Quake's types like qboolean are already defined
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS
+
+// Function to get iOS Documents directory
+const char* Sys_GetDocumentsDirectory(void)
+{
+    static char documents_path[1024];
+    const char *home = getenv("HOME");
+    
+    if (home) {
+        snprintf(documents_path, sizeof(documents_path), "%s/Documents", home);
+    } else {
+        strcpy(documents_path, "./Documents");
+    }
+    
+    return documents_path;
+}
+
+// External function declaration - implemented in ios_ui.m
+extern void Sys_ShowMissingDataAlert_ObjC(void);
+
+#endif // TARGET_OS_IOS
+#endif // __APPLE__
 
 typedef struct
 {
@@ -104,6 +146,23 @@ fsPackTypes_t fs_packtypes[] = {
 	{"pk3", PK3},
 	{"zip", PK3}
 };
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS
+
+// Initialize datadir for iOS at file scope
+__attribute__((constructor))
+static void iOS_InitDataDir(void)
+{
+    const char *docs = Sys_GetDocumentsDirectory();
+    if (docs) {
+        strcpy(datadir, docs);
+    }
+}
+
+#endif
+#endif
 
 char datadir[MAX_OSPATH];
 char fs_gamedir[MAX_OSPATH];
@@ -1403,32 +1462,67 @@ FS_AddDirToSearchPath(char *dir, qboolean create) {
 }
 
 void FS_BuildGenericSearchPath(void) {
-	// We may not use the va() function from shared.c
-	// since it's buffersize is 1024 while most OS have
-	// a maximum path size of 4096...
-	char path[MAX_OSPATH];
+    // We may not use the va() function from shared.c
+    // since it's buffersize is 1024 while most OS have
+    // a maximum path size of 4096...
+    char path[MAX_OSPATH];
 
-	fsRawPath_t *search = fs_rawPath;
+    fsRawPath_t *search = fs_rawPath;
 
-	while (search != NULL) {
-		Com_sprintf(path, sizeof(path), "%s/%s", search->path, BASEDIRNAME);
-		FS_AddDirToSearchPath(path, search->create);
+#ifdef __APPLE__
+#if TARGET_OS_IOS
+    // On iOS, only add the Documents directory to avoid conflicts
+    int found_documents = 0;
+    
+    while (search != NULL) {
+        // Check if this path contains "Documents"
+        if (strstr(search->path, "Documents") != NULL) {
+            snprintf(path, sizeof(path), "%s/%s", search->path, BASEDIRNAME);
+            FS_AddDirToSearchPath(path, search->create);
+            found_documents = 1;
+            break;  // Only add the Documents path
+        }
+        search = search->next;
+    }
+    
+    // If we didn't find Documents path, fall back to normal behavior
+    if (!found_documents) {
+        search = fs_rawPath;
+        while (search != NULL) {
+            snprintf(path, sizeof(path), "%s/%s", search->path, BASEDIRNAME);
+            FS_AddDirToSearchPath(path, search->create);
+            search = search->next;
+        }
+    }
+#else
+    // Non-iOS platforms use normal behavior
+    while (search != NULL) {
+        Com_sprintf(path, sizeof(path), "%s/%s", search->path, BASEDIRNAME);
+        FS_AddDirToSearchPath(path, search->create);
+        search = search->next;
+    }
+#endif
+#else
+    // Non-Apple platforms
+    while (search != NULL) {
+        Com_sprintf(path, sizeof(path), "%s/%s", search->path, BASEDIRNAME);
+        FS_AddDirToSearchPath(path, search->create);
+        search = search->next;
+    }
+#endif
 
-		search = search->next;
-	}
+    // Until here we've added the generic directories to the
+    // search path. Save the current head node so we can
+    // distinguish generic and specialized directories.
+    fs_baseSearchPaths = fs_searchPaths;
 
-	// Until here we've added the generic directories to the
-	// search path. Save the current head node so we can
-	// distinguish generic and specialized directories.
-	fs_baseSearchPaths = fs_searchPaths;
+    // We need to create the game directory.
+    Sys_Mkdir(fs_gamedir);
 
-	// We need to create the game directory.
-	Sys_Mkdir(fs_gamedir);
-
-	// We need to create the screenshot directory since the
-	// render dll doesn't link the filesystem stuff.
-	Com_sprintf(path, sizeof(path), "%s/scrnshot", fs_gamedir);
-	Sys_Mkdir(path);
+    // We need to create the screenshot directory since the
+    // render dll doesn't link the filesystem stuff.
+    Com_sprintf(path, sizeof(path), "%s/scrnshot", fs_gamedir);
+    Sys_Mkdir(path);
 }
 
 void
@@ -1587,54 +1681,107 @@ void FS_BuildRawPath(void) {
 
 // --------
 
-void
-FS_InitFilesystem(void)
+void FS_InitFilesystem(void)
 {
-	// Register FS commands.
-	Cmd_AddCommand("path", FS_Path_f);
-	Cmd_AddCommand("link", FS_Link_f);
-	Cmd_AddCommand("dir", FS_Dir_f);
+    // Register FS commands.
+    Cmd_AddCommand("path", FS_Path_f);
+    Cmd_AddCommand("link", FS_Link_f);
+    Cmd_AddCommand("dir", FS_Dir_f);
 
-	// Register cvars
-	fs_basedir = Cvar_Get("basedir", ".", CVAR_NOSET);
-	fs_cddir = Cvar_Get("cddir", "", CVAR_NOSET);
-	fs_gamedirvar = Cvar_Get("game", "", CVAR_LATCH | CVAR_SERVERINFO);
-	fs_debug = Cvar_Get("fs_debug", "0", 0);
+    // Register cvars
+#ifdef __APPLE__
+#if TARGET_OS_IOS
+    {
+        // Set datadir to Documents directory for iOS
+        const char *docs_dir = Sys_GetDocumentsDirectory();
+        strcpy(datadir, docs_dir);
+        
+        Com_Printf("Using Documents directory for game data: %s\n", datadir);
+        
+        // Set basedir to "." to avoid deprecation warning
+        fs_basedir = Cvar_Get("basedir", ".", CVAR_NOSET);
+    }
+#else
+    // macOS
+    fs_basedir = Cvar_Get("basedir", ".", CVAR_NOSET);
+#endif
+#else
+    // Other platforms
+    fs_basedir = Cvar_Get("basedir", ".", CVAR_NOSET);
+#endif
 
-	// Deprecation warning, can be removed at a later time.
-	if (strcmp(fs_basedir->string, ".") != 0)
-	{
-		Com_Printf("+set basedir is deprecated, use -datadir instead\n");
-		strcpy(datadir, fs_basedir->string);
-	}
-	else if (strlen(datadir) == 0)
-	{
-		strcpy(datadir, ".");
-	}
+    fs_cddir = Cvar_Get("cddir", "", CVAR_NOSET);
+    fs_gamedirvar = Cvar_Get("game", "", CVAR_LATCH | CVAR_SERVERINFO);
+    fs_debug = Cvar_Get("fs_debug", "0", 0);
+
+    // Deprecation warning, can be removed at a later time.
+    // This won't trigger on iOS because we set basedir to "."
+    if (strcmp(fs_basedir->string, ".") != 0)
+    {
+        Com_Printf("+set basedir is deprecated, use -datadir instead\n");
+        strcpy(datadir, fs_basedir->string);
+    }
+    else if (strlen(datadir) == 0)
+    {
+        strcpy(datadir, ".");
+    }
 
 #ifdef _WIN32
-	// setup minizip for Unicode compatibility
-	fill_fopen_filefunc(&zlib_file_api);
-	zlib_file_api.zopen_file = fopen_file_func_utf;
+    // setup minizip for Unicode compatibility
+    fill_fopen_filefunc(&zlib_file_api);
+    zlib_file_api.zopen_file = fopen_file_func_utf;
 #endif
 
-	// Build search path
-	FS_BuildRawPath();
-	FS_BuildGenericSearchPath();
+    // Debug: Check datadir before building paths
+    Com_Printf("DEBUG: datadir before FS_BuildRawPath: %s\n", datadir);
+    
+    // Build search path
+    FS_BuildRawPath();
+    
+    Com_Printf("DEBUG: datadir after FS_BuildRawPath: %s\n", datadir);
+    Com_Printf("DEBUG: fs_gamedir after FS_BuildRawPath: %s\n", fs_gamedir);
+    
+    FS_BuildGenericSearchPath();
+    
+    Com_Printf("DEBUG: fs_gamedir after FS_BuildGenericSearchPath: %s\n", fs_gamedir);
 
-	if (fs_gamedirvar->string[0] != '\0')
-	{
-		FS_BuildGameSpecificSearchPath(fs_gamedirvar->string);
-	}
+    if (fs_gamedirvar->string[0] != '\0')
+    {
+        FS_BuildGameSpecificSearchPath(fs_gamedirvar->string);
+    }
 #ifndef DEDICATED_ONLY
-	else
-	{
-		// no mod, but we still need to get the list of OGG tracks for background music
-		OGG_InitTrackList();
-	}
+    else
+    {
+        // no mod, but we still need to get the list of OGG tracks for background music
+        OGG_InitTrackList();
+    }
 #endif
 
-	// Debug output
-	Com_Printf("Using '%s' for writing.\n", fs_gamedir);
+    // Debug output
+    Com_Printf("Using '%s' for writing.\n", fs_gamedir);
 }
 
+#ifdef __APPLE__
+#if TARGET_OS_IOS
+void FS_CheckGameDataiOS(void)
+{
+    char baseq2_path[1024];
+    struct stat st;
+    
+    Com_sprintf(baseq2_path, sizeof(baseq2_path), "%s/baseq2/pak0.pak", datadir);
+    
+    if (stat(baseq2_path, &st) != 0 || !S_ISREG(st.st_mode)) {
+        Com_Printf("ERROR: baseq2/pak0.pak not found in Documents directory\n");
+        
+        // Show alert on main thread after a delay
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            Sys_ShowMissingDataAlert_ObjC();
+        });
+        
+        // Give alert time to show before crashing
+        sleep(3);
+        Com_Error(ERR_FATAL, "Game data files not found in Documents directory");
+    }
+}
+#endif
+#endif

@@ -479,3 +479,26 @@ GLimp_GetRefreshRate(void)
 
 	return glimp_refreshRate;
 }
+
+/*
+===============
+VID_FlushCommands
+
+Flush OpenGL commands when going to background
+Called from cl_main.c
+===============
+*/
+void VID_FlushCommands(void) {
+    Com_Printf("VID_FlushCommands: Flushing GPU commands for background\n");
+    
+    // Get the current GL context from SDL and flush it
+    SDL_GLContext currentContext = SDL_GL_GetCurrentContext();
+    if (currentContext && window) {
+        SDL_GL_MakeCurrent(window, currentContext);
+        
+        // Use SDL's GL function to ensure proper context handling
+        SDL_GL_SwapWindow(window);
+    }
+    
+    Com_Printf("VID_FlushCommands: GPU flush complete\n");
+}

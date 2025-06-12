@@ -28,6 +28,13 @@
 #include "header/client.h"
 #include "input/header/input.h"
 
+// Add background rendering pause support
+static qboolean rendering_paused = false;
+
+// Forward declarations for notification handlers
+void CL_PauseRendering(void);
+void CL_ResumeRendering(void);
+
 void CL_ForwardToServer_f(void);
 void CL_Changing_f(void);
 void CL_Reconnect_f(void);
@@ -430,6 +437,34 @@ CL_Snd_Restart_f(void)
 	CL_RegisterSounds();
 }
 
+/*
+==================
+CL_PauseRendering
+
+Called when app goes to background
+==================
+*/
+void CL_PauseRendering(void) {
+    Com_Printf("CL_PauseRendering: Pausing rendering for background\n");
+    rendering_paused = true;
+    
+    // Flush OpenGL commands
+    extern void VID_FlushCommands(void);
+    VID_FlushCommands();
+}
+
+/*
+==================
+CL_ResumeRendering
+
+Called when app returns to foreground
+==================
+*/
+void CL_ResumeRendering(void) {
+    Com_Printf("CL_ResumeRendering: Resuming rendering\n");
+    rendering_paused = false;
+}
+
 int precache_check;
 int precache_spawncount;
 int precache_tex;
@@ -714,6 +749,7 @@ CL_UpdateWindowedMouse(void)
 void
 CL_Frame(int packetdelta, int renderdelta, int timedelta, qboolean packetframe, qboolean renderframe)
 {
+    static int extratime;
 	static int lasttimecalled;
 
 	// Dedicated?
@@ -803,8 +839,13 @@ CL_Frame(int packetdelta, int renderdelta, int timedelta, qboolean packetframe, 
 		{
 			time_before_ref = Sys_Milliseconds();
 		}
-
-		SCR_UpdateScreen();
+        
+        if (!rendering_paused) {
+            SCR_UpdateScreen ();
+        } else {
+            // Small delay to prevent busy waiting while paused
+            Sys_Nanosleep(16000000); // 16ms = ~60 FPS equivalent pause
+        }
 
 		if (host_speeds->value)
 		{

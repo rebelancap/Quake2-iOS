@@ -20,22 +20,54 @@
 	<string>${PRODUCT_NAME}</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>quake2</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
+	<key>GCSupportedGameControllers</key>
+	<array>
+		<dict>
+			<key>ProfileName</key>
+			<string>ExtendedGamepad</string>
+		</dict>
+		<dict>
+			<key>ProfileName</key>
+			<string>MicroGamepad</string>
+		</dict>
+		<dict>
+			<key>ProfileName</key>
+			<string>DirectionalGamepad</string>
+		</dict>
+	</array>
+	<key>GCSupportsControllerUserInteraction</key>
+	<true/>
 	<key>LSRequiresIPhoneOS</key>
 	<false/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Quake II would like to remain connected to nearby bluetooth Game Controllers and Game Pads even when you’re not using the app.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>dpquake.ttf</string>
 	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>Quake2LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
 	<key>UIRequiresFullScreen</key>
 	<true/>
 	<key>UIStatusBarHidden</key>
@@ -45,7 +77,75 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>Quake II would like to remain connected to nearby bluetooth Game Controllers and Game Pads even when you’re not using the app.</string>
+	<key>UISupportsDocumentBrowser</key>
+	<true/>
+    <key>UIApplicationShortcutItems</key>
+    <array>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>$(PRODUCT_BUNDLE_IDENTIFIER).vanilla</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Quake 2</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Vanilla Game</string>
+            <key>UIApplicationShortcutItemIconType</key>
+            <string>UIApplicationShortcutIconTypePlay</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>$(PRODUCT_BUNDLE_IDENTIFIER).xatrix</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>The Reckoning</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Mission Pack 1</string>
+            <key>UIApplicationShortcutItemIconType</key>
+            <string>UIApplicationShortcutIconTypePlay</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>$(PRODUCT_BUNDLE_IDENTIFIER).rogue</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Ground Zero</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Mission Pack 2</string>
+            <key>UIApplicationShortcutItemIconType</key>
+            <string>UIApplicationShortcutIconTypePlay</string>
+        </dict>
+    </array>
+    <!-- Add this to your Info.plist -->
+
+    <key>UIApplicationShortcutItems</key>
+    <array>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>$(PRODUCT_BUNDLE_IDENTIFIER).rogue</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Ground Zero</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Mission Pack 2</string>
+            <key>UIApplicationShortcutItemIconFile</key>
+            <string>shortcut-quake2</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>$(PRODUCT_BUNDLE_IDENTIFIER).xatrix</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>The Reckoning</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Mission Pack 1</string>
+            <key>UIApplicationShortcutItemIconFile</key>
+            <string>shortcut-quake2</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>$(PRODUCT_BUNDLE_IDENTIFIER).vanilla</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Quake 2</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Vanilla Quake 2</string>
+            <key>UIApplicationShortcutItemIconFile</key>
+            <string>shortcut-quake2</string>
+        </dict>
+    </array>
 </dict>
 </plist>
