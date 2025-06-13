@@ -44,7 +44,7 @@ typedef struct
 	int dirlen;
 } dpackheader_t;
 
-#define MAX_FILES_IN_PACK 4096
+#define MAX_FILES_IN_PACK 8192  // Increased from 4096 to support AQtion (5345 files in pak0.pkz)
 
 /* PCX files are used for as many images as possible */
 

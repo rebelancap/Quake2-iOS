@@ -368,13 +368,31 @@ IN_TranslateSDLtoQ2Key(unsigned int keysym)
  * frame by the client and does nearly all the
  * input magic.
  */
-void
-IN_Update(void)
+void IN_Update(void)
 {
-	qboolean want_grab;
-	SDL_Event event;
-	unsigned int key;
-
+    qboolean want_grab;
+    SDL_Event event;
+    unsigned int key;
+    
+    // Restart TextInput on game switch
+    static int text_input_restart_time = 0;
+    
+    if (text_input_restart_time > 0 && sys_frame_time > text_input_restart_time) {
+        SDL_StartTextInput();
+        text_input_restart_time = 0;
+        Com_Printf("Text input restarted\n");
+    }
+    
+    // Detect game changes
+    static char last_game[64] = {0};
+    cvar_t *game = Cvar_Get("game", "", 0);
+    
+    if (game && game->string && strcmp(last_game, game->string) != 0) {
+        Q_strlcpy(last_game, game->string, sizeof(last_game));
+        // Schedule a restart in 100ms
+        text_input_restart_time = sys_frame_time + 100;
+    }
+    
 	static char last_hat = SDL_HAT_CENTERED;
 	static qboolean left_trigger = false;
 	static qboolean right_trigger = false;
@@ -1340,6 +1358,7 @@ IN_Init(void)
 #else
     SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+    SDL_StartTextInput();  // Enable typing in console!
 #if !TARGET_OS_TV
     if (motionManager == nil) {
         motionManager = [[CMMotionManager alloc] init];

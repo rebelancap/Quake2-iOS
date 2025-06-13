@@ -57,14 +57,22 @@ RE_Draw_FindPic (char *name)
 Draw_InitLocal
 ===============
 */
+
 void
 Draw_InitLocal (void)
 {
-	draw_chars = RE_Draw_FindPic ("conchars");
-	if (!draw_chars)
-	{
-		ri.Sys_Error(ERR_FATAL, "Couldn't load pics/conchars.pcx");
-	}
+    draw_chars = RE_Draw_FindPic ("conchars");
+    if (!draw_chars)
+    {
+        // Try PNG fallback for AQtion mod
+        // RE_Draw_FindPic won't work for PNG because it hardcodes .pcx
+        // So we need to call R_FindImage directly
+        draw_chars = R_FindImage("pics/conchars.png", it_pic);
+        if (!draw_chars)
+        {
+            ri.Sys_Error(ERR_FATAL, "Couldn't load pics/conchars.pcx or pics/conchars.png");
+        }
+    }
 }
 
 

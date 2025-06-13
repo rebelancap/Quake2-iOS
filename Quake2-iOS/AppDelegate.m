@@ -189,21 +189,48 @@
     
     // Check for game data FIRST, before anything else
     NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *baseq2Path = [[documentsPath stringByAppendingPathComponent:@"baseq2"] stringByAppendingPathComponent:@"pak0.pak"];
+    NSString *baseq2Path = [documentsPath stringByAppendingPathComponent:@"baseq2"];
     
-    BOOL baseq2Exists = [[NSFileManager defaultManager] fileExistsAtPath:baseq2Path];
+    // Always need baseq2
+    BOOL baseq2Exists = NO;
+    NSFileManager *fm = [NSFileManager defaultManager];
+    if ([fm fileExistsAtPath:baseq2Path]) {
+        // Check for any valid pak file (pak0.pak, pak0.pkz, pak0.pk3)
+        NSString *pak0Path = [baseq2Path stringByAppendingPathComponent:@"pak0.pak"];
+        NSString *pak0PkzPath = [baseq2Path stringByAppendingPathComponent:@"pak0.pkz"];
+        NSString *pak0Pk3Path = [baseq2Path stringByAppendingPathComponent:@"pak0.pk3"];
+        
+        baseq2Exists = [fm fileExistsAtPath:pak0Path] ||
+                       [fm fileExistsAtPath:pak0PkzPath] ||
+                       [fm fileExistsAtPath:pak0Pk3Path];
+    }
+    
+    // Check if mod exists (if launching a mod)
     BOOL modExists = YES; // Assume true unless we're loading a mod
-    
     NSString *missingFolder = nil;
     
-    // Check if baseq2 exists
     if (!baseq2Exists) {
         missingFolder = @"baseq2";
     }
-    // If launching a mod, check if that mod exists
     else if (launchMod && launchMod.length > 0) {
-        NSString *modPath = [[documentsPath stringByAppendingPathComponent:launchMod] stringByAppendingPathComponent:@"pak0.pak"];
-        modExists = [[NSFileManager defaultManager] fileExistsAtPath:modPath];
+        NSString *modPath = [documentsPath stringByAppendingPathComponent:launchMod];
+        
+        // Special handling for AQtion
+        if ([launchMod isEqualToString:@"baseaq"]) {
+            NSString *pak0Path = [modPath stringByAppendingPathComponent:@"pak0.pkz"];
+            NSString *pak1Path = [modPath stringByAppendingPathComponent:@"pak1.pkz"];
+            modExists = [fm fileExistsAtPath:pak0Path] && [fm fileExistsAtPath:pak1Path];
+        } else {
+            // Generic mod check
+            NSString *modPak0Path = [modPath stringByAppendingPathComponent:@"pak0.pak"];
+            NSString *modPak0PkzPath = [modPath stringByAppendingPathComponent:@"pak0.pkz"];
+            NSString *modPak0Pk3Path = [modPath stringByAppendingPathComponent:@"pak0.pk3"];
+            
+            modExists = [fm fileExistsAtPath:modPak0Path] ||
+                        [fm fileExistsAtPath:modPak0PkzPath] ||
+                        [fm fileExistsAtPath:modPak0Pk3Path];
+        }
+        
         if (!modExists) {
             missingFolder = launchMod;
         }
@@ -219,25 +246,36 @@
         
         NSString *message;
         if (!baseq2Exists) {
-            message = @"Please copy the game folders to the Documents directory:\n\n"
-                      "• baseq2 (required)\n"
+            message = @"Game data missing!\n\n"
+                      "Please copy the game folders to the Documents directory:\n\n"
+                      "Required:\n"
+                      "• baseq2 folder with pak0.pak\n\n"
+                      "Optional:\n"
                       "• xatrix (The Reckoning)\n"
-                      "• rogue (Ground Zero)\n\n"
+                      "• rogue (Ground Zero)\n"
+                      "• baseaq (AQtion)\n\n"
                       "Use the Files app or macOS Finder to transfer the folders.";
         } else {
             // Mod-specific message
-            NSString *modName = @"Unknown mod";
+            NSString *modName = launchMod;
             if ([launchMod isEqualToString:@"xatrix"]) {
-                modName = @"The Reckoning (xatrix)";
+                modName = @"The Reckoning";
             } else if ([launchMod isEqualToString:@"rogue"]) {
-                modName = @"Ground Zero (rogue)";
+                modName = @"Ground Zero";
+            } else if ([launchMod isEqualToString:@"baseaq"]) {
+                modName = @"AQtion";
             }
             
-            message = [NSString stringWithFormat:@"Mission pack data missing!\n\n"
-                                                 "The folder '%@' was not found in Documents.\n\n"
+            NSString *expectedFiles = @"pak0.pak";
+            if ([launchMod isEqualToString:@"baseaq"]) {
+                expectedFiles = @"pak0.pkz and pak1.pkz";
+            }
+            
+            message = [NSString stringWithFormat:@"%@ data missing!\n\n"
+                                                 "The folder '%@' was not found in Documents or is incomplete.\n\n"
                                                  "To play %@, please copy the '%@' folder to Documents.\n\n"
-                                                 "The folder should contain at least pak0.pak.",
-                                                 missingFolder, modName, missingFolder];
+                                                 "The folder should contain %@.",
+                                                 modName, missingFolder, modName, missingFolder, expectedFiles];
         }
         
         UIAlertController *alert = [UIAlertController
@@ -270,6 +308,14 @@
         
         // Start with basic args
         NSMutableArray *args = [NSMutableArray arrayWithObject:@"quake2"];
+        
+        // Add retexturing support for PNG fallback
+        [args addObject:@"+set"];
+        [args addObject:@"gl_retexturing"];
+        [args addObject:@"1"];
+
+        // Skip demo and go to menu (important for mods without demo files)
+//        [args addObject:@"+menu_main"];
         
         // Add mod args
         if (launchMod && launchMod.length > 0) {

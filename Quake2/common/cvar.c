@@ -519,6 +519,41 @@ Cvar_Set_f(void)
 	}
 }
 
+// Add this function after Cvar_Set_f:
+
+/*
+ * Seta command - sets a cvar and marks it as archived
+ * This is for compatibility with mods that expect Quake 3 style commands
+ */
+void
+Cvar_Seta_f(void)
+{
+    char *firstarg;
+    int c, i;
+
+    c = Cmd_Argc();
+
+    if (c != 3)
+    {
+        Com_Printf("usage: seta <variable> <value>\n");
+        return;
+    }
+
+    firstarg = Cmd_Argv(1);
+
+    /* An ugly hack to rewrite changed CVARs */
+    for (i = 0; i < sizeof(replacements) / sizeof(replacement_t); i++)
+    {
+        if (!strcmp(firstarg, replacements[i].old))
+        {
+            firstarg = replacements[i].new;
+        }
+    }
+
+    // Set the cvar with CVAR_ARCHIVE flag so it gets saved
+    Cvar_FullSet(firstarg, Cmd_Argv(2), CVAR_ARCHIVE);
+}
+
 /*
  * Appends lines containing "set variable value" for all variables
  * with the archive flag set to true.
@@ -655,6 +690,7 @@ void
 Cvar_Init(void)
 {
 	Cmd_AddCommand("set", Cvar_Set_f);
+    Cmd_AddCommand("seta", Cvar_Seta_f);
 	Cmd_AddCommand("cvarlist", Cvar_List_f);
 }
 

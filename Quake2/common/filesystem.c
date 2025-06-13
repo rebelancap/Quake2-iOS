@@ -47,6 +47,7 @@
 
 #define MAX_HANDLES 512
 #define MAX_PAKS 100
+#define MAX_FILES_IN_PACK 8192
 
 #ifdef SYSTEMWIDE
  #ifndef SYSTEMDIR
@@ -144,6 +145,7 @@ fsPackTypes_t fs_packtypes[] = {
 	{"pak", PAK},
 	{"pk2", PK3},
 	{"pk3", PK3},
+    {"pkz", PK3}, // AQtion support
 	{"zip", PK3}
 };
 
@@ -431,6 +433,11 @@ FS_FOpenFile(const char *name, fileHandle_t *f, qboolean gamedir_only)
 	fsPack_t *pack;
 	fsSearchPath_t *search;
 	int i;
+    
+    // Add debug logging
+    if (strstr(name, "conchars") || strstr(name, "colormap")) {
+        Com_Printf("DEBUG: FS_FOpenFile looking for: %s\n", name);
+    }
 
 	file_from_pak = false;
 	handle = FS_HandleForFile(name, f);
@@ -440,7 +447,15 @@ FS_FOpenFile(const char *name, fileHandle_t *f, qboolean gamedir_only)
 	/* Search through the path, one element at a time. */
 	for (search = fs_searchPaths; search; search = search->next)
 	{
-		if (gamedir_only)
+        // Add debug for search paths
+        if (strstr(name, "conchars") || strstr(name, "colormap")) {
+            if (search->pack) {
+                Com_Printf("DEBUG: Searching in pack: %s\n", search->pack->name);
+            } else {
+                Com_Printf("DEBUG: Searching in dir: %s\n", search->path);
+            }
+        }
+        if (gamedir_only)
 		{
 			if (strstr(search->path, FS_Gamedir()) == NULL)
 			{
@@ -465,6 +480,13 @@ FS_FOpenFile(const char *name, fileHandle_t *f, qboolean gamedir_only)
 			{
 				if (Q_stricmp(pack->files[i].name, handle->name) == 0)
 				{
+                    // Debug: Show what we're comparing for problem files
+                    if (strstr(handle->name, "conchars") || strstr(handle->name, "colormap")) {
+                        Com_Printf("DEBUG: Comparing '%s' with '%s' (stricmp=%d)\n",
+                            pack->files[i].name, handle->name,
+                            Q_stricmp(pack->files[i].name, handle->name));
+                    }
+                    if (Q_stricmp(pack->files[i].name, handle->name) == 0)
 					/* Found it! */
 					if (fs_debug->value)
 					{
