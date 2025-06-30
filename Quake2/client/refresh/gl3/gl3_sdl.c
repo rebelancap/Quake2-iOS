@@ -106,13 +106,17 @@ void GL3_EndFrame(void)
     glEnable(GL_BLEND);
     
     gl3state.currentVAO = -1;
-    gl3state. currentVBO = -1;
+    gl3state.currentVBO = -1;
     gl3state.currentEBO = -1;
     gl3state.currentShaderProgram = -1;
     gl3state.currentUBO = -1;
+    
+    // Update on-screen control visibility based on game state
+    extern void UpdateOnScreenControlsVisibility(void);
+    UpdateOnScreenControlsVisibility();
 #endif
     
-	SDL_GL_SwapWindow(window);
+    SDL_GL_SwapWindow(window);
 }
 
 /*

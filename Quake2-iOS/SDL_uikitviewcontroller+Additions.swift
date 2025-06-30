@@ -6,6 +6,24 @@
 //
 
 import UIKit
+import QuartzCore  // For CACurrentMediaTime
+
+// declare the cls variable
+@_silgen_name("cls")
+var cls: client_static_t
+
+// Declare the external variables
+@_silgen_name("joystick_yaw")
+var joystick_yaw: Float
+
+@_silgen_name("joystick_pitch")
+var joystick_pitch: Float
+
+@_silgen_name("joystick_forwardmove")
+var joystick_forwardmove: Float
+
+@_silgen_name("joystick_sidemove")
+var joystick_sidemove: Float
 
 extension SDL_uikitviewcontroller {
     
@@ -25,6 +43,16 @@ extension SDL_uikitviewcontroller {
         static var _f1Button = UIButton()
         static var _prevWeaponButton = UIButton()
         static var _nextWeaponButton = UIButton()
+        static var _rightJoystickView = JoyStickView(frame: .zero)
+        static var _dpadView = UIView()
+        static var _dpadUpButton = UIButton()
+        static var _dpadDownButton = UIButton()
+        static var _dpadLeftButton = UIButton()
+        static var _dpadRightButton = UIButton()
+        static var _enterButton = UIButton()
+        static var _backButton = UIButton()
+        static var _quitButton = UIButton()
+        static var _lastLookTime: TimeInterval = 0.0
      }
 
     var fireButton:UIButton {
@@ -51,6 +79,15 @@ extension SDL_uikitviewcontroller {
         }
         set(newValue) {
             Holder._joystickView = newValue
+        }
+    }
+    
+    var rightJoystickView:JoyStickView {
+        get {
+            return Holder._rightJoystickView
+        }
+        set(newValue) {
+            Holder._rightJoystickView = newValue
         }
     }
 
@@ -143,9 +180,58 @@ extension SDL_uikitviewcontroller {
             Holder._nextWeaponButton = newValue
         }
     }
+    
+    var dpadView: UIView {
+        get { return Holder._dpadView }
+        set { Holder._dpadView = newValue }
+    }
+
+    var dpadUpButton: UIButton {
+        get { return Holder._dpadUpButton }
+        set { Holder._dpadUpButton = newValue }
+    }
+
+    var dpadDownButton: UIButton {
+        get { return Holder._dpadDownButton }
+        set { Holder._dpadDownButton = newValue }
+    }
+
+    var dpadLeftButton: UIButton {
+        get { return Holder._dpadLeftButton }
+        set { Holder._dpadLeftButton = newValue }
+    }
+
+    var dpadRightButton: UIButton {
+        get { return Holder._dpadRightButton }
+        set { Holder._dpadRightButton = newValue }
+    }
+
+    var enterButton: UIButton {
+        get { return Holder._enterButton }
+        set { Holder._enterButton = newValue }
+    }
+
+    var backButton: UIButton {
+        get { return Holder._backButton }
+        set { Holder._backButton = newValue }
+    }
+    
+    var quitButton: UIButton {
+        get {
+            return Holder._quitButton
+        }
+        set(newValue) {
+            Holder._quitButton = newValue
+        }
+    }
+    
+    var lastLookTime: TimeInterval {
+        get { return Holder._lastLookTime }
+        set { Holder._lastLookTime = newValue }
+    }
 
     @objc func fireButton(rect: CGRect) -> UIButton {
-        fireButton = UIButton(frame: CGRect(x: rect.width - 155, y: rect.height - 90, width: 75, height: 75))
+        fireButton = UIButton(frame: CGRect(x: rect.width - 250, y: rect.height - 90, width: 75, height: 75))
         fireButton.setTitle("FIRE", for: .normal)
         fireButton.setBackgroundImage(UIImage(named: "JoyStickBase")!, for: .normal)
         fireButton.addTarget(self, action: #selector(self.firePressed), for: .touchDown)
@@ -177,6 +263,22 @@ extension SDL_uikitviewcontroller {
         joystickView.baseAlpha = 0.5 // let the background bleed thru the base
         joystickView.handleTintColor = UIColor.darkGray // Colorize the handle
         return joystickView
+    }
+    
+    @objc func rightJoyStick(rect: CGRect) -> JoyStickView {
+        let size = CGSize(width: 100.0, height: 100.0)
+        let rightJoystickFrame = CGRect(origin: CGPoint(x: rect.width - size.width - 50.0,
+                                                         y: (rect.height - size.height - 50.0)),
+                                        size: size)
+        rightJoystickView = JoyStickView(frame: rightJoystickFrame)
+        rightJoystickView.delegate = self
+        rightJoystickView.tag = 2  // Different tag from left joystick
+        
+        rightJoystickView.movable = false
+        rightJoystickView.alpha = 0.5
+        rightJoystickView.baseAlpha = 0.5
+        rightJoystickView.handleTintColor = UIColor.darkGray
+        return rightJoystickView
     }
     
     @objc func buttonStack(rect: CGRect) -> UIStackView {
@@ -265,6 +367,181 @@ extension SDL_uikitviewcontroller {
         nextWeaponButton.addTarget(self, action: #selector(self.nextWeaponReleased), for: .touchUpInside)
         return nextWeaponButton
     }
+    
+    @objc func dpadView(rect: CGRect) -> UIView {
+        // Create a container for the D-pad, moved higher up
+        dpadView = UIView(frame: CGRect(x: 20, y: rect.height - 220, width: 160, height: 160))  // Moved up from -180 to -220
+        
+        let buttonSize: CGFloat = 55  // Increased from 50 to 55
+        let centerX = dpadView.bounds.width / 2
+        let centerY = dpadView.bounds.height / 2 - 15  // Shifted up by 15 points
+        let spacing: CGFloat = 58  // Increased to account for larger buttons
+        
+        // Up button
+        dpadUpButton = UIButton(frame: CGRect(x: centerX - buttonSize/2, y: centerY - spacing - buttonSize/2, width: buttonSize, height: buttonSize))
+        dpadUpButton.setTitle("▲", for: .normal)
+        dpadUpButton.titleLabel?.font = UIFont.systemFont(ofSize: 24)  // Larger arrow
+        dpadUpButton.layer.borderColor = UIColor.white.cgColor
+        dpadUpButton.layer.borderWidth = 1
+        dpadUpButton.alpha = 0.5
+        dpadUpButton.addTarget(self, action: #selector(dpadUpPressed), for: .touchDown)
+        dpadUpButton.addTarget(self, action: #selector(dpadUpReleased), for: .touchUpInside)
+        dpadView.addSubview(dpadUpButton)
+        
+        // Down button
+        dpadDownButton = UIButton(frame: CGRect(x: centerX - buttonSize/2, y: centerY + spacing - buttonSize/2, width: buttonSize, height: buttonSize))
+        dpadDownButton.setTitle("▼", for: .normal)
+        dpadDownButton.titleLabel?.font = UIFont.systemFont(ofSize: 24)  // Larger arrow
+        dpadDownButton.layer.borderColor = UIColor.white.cgColor
+        dpadDownButton.layer.borderWidth = 1
+        dpadDownButton.alpha = 0.5
+        dpadDownButton.addTarget(self, action: #selector(dpadDownPressed), for: .touchDown)
+        dpadDownButton.addTarget(self, action: #selector(dpadDownReleased), for: .touchUpInside)
+        dpadView.addSubview(dpadDownButton)
+        
+        // Left button
+        dpadLeftButton = UIButton(frame: CGRect(x: centerX - spacing - buttonSize/2, y: centerY - buttonSize/2, width: buttonSize, height: buttonSize))
+        dpadLeftButton.setTitle("◀", for: .normal)
+        dpadLeftButton.titleLabel?.font = UIFont.systemFont(ofSize: 24)  // Larger arrow
+        dpadLeftButton.layer.borderColor = UIColor.white.cgColor
+        dpadLeftButton.layer.borderWidth = 1
+        dpadLeftButton.alpha = 0.5
+        dpadLeftButton.addTarget(self, action: #selector(dpadLeftPressed), for: .touchDown)
+        dpadLeftButton.addTarget(self, action: #selector(dpadLeftReleased), for: .touchUpInside)
+        dpadView.addSubview(dpadLeftButton)
+        
+        // Right button
+        dpadRightButton = UIButton(frame: CGRect(x: centerX + spacing - buttonSize/2, y: centerY - buttonSize/2, width: buttonSize, height: buttonSize))
+        dpadRightButton.setTitle("▶", for: .normal)
+        dpadRightButton.titleLabel?.font = UIFont.systemFont(ofSize: 24)  // Larger arrow
+        dpadRightButton.layer.borderColor = UIColor.white.cgColor
+        dpadRightButton.layer.borderWidth = 1
+        dpadRightButton.alpha = 0.5
+        dpadRightButton.addTarget(self, action: #selector(dpadRightPressed), for: .touchDown)
+        dpadRightButton.addTarget(self, action: #selector(dpadRightReleased), for: .touchUpInside)
+        dpadView.addSubview(dpadRightButton)
+        
+        dpadView.isHidden = true  // Start hidden
+        return dpadView
+    }
+
+    @objc func enterButton(rect: CGRect) -> UIButton {
+        // Move enter button closer to the center
+        enterButton = UIButton(frame: CGRect(x: rect.width - 200, y: rect.height - 110, width: 75, height: 75))  // Changed y from -90 to -110
+        enterButton.setTitle("ENTER", for: .normal)
+        enterButton.setBackgroundImage(UIImage(named: "JoyStickBase"), for: .normal)
+        enterButton.alpha = 0.5
+        enterButton.addTarget(self, action: #selector(enterPressed), for: .touchDown)
+        enterButton.addTarget(self, action: #selector(enterReleased), for: .touchUpInside)
+        enterButton.isHidden = true  // Start hidden
+        return enterButton
+    }
+
+    @objc func backButton(rect: CGRect) -> UIButton {
+        // Move back button closer to enter button
+        backButton = UIButton(frame: CGRect(x: rect.width - 110, y: rect.height - 140, width: 75, height: 75))  // Changed y from -120 to -140
+        backButton.setTitle("BACK", for: .normal)
+        backButton.setBackgroundImage(UIImage(named: "JoyStickBase"), for: .normal)
+        backButton.alpha = 0.5
+        backButton.addTarget(self, action: #selector(backPressed), for: .touchDown)
+        backButton.addTarget(self, action: #selector(backReleased), for: .touchUpInside)
+        backButton.isHidden = true  // Start hidden
+        return backButton
+    }
+    
+    @objc func quitButton(rect: CGRect) -> UIButton {
+        let button = UIButton(frame: CGRect(x: 10, y: 10, width: 30, height: 30))  // Top left, same size as F1
+        button.setTitle("Q", for: .normal)
+        button.addTarget(self, action: #selector(self.quitPressed), for: .touchDown)
+        button.layer.borderColor = UIColor.white.cgColor
+        button.layer.borderWidth = CGFloat(1)
+        button.alpha = 0.5
+        // Remove the red background
+        
+        self.quitButton = button
+        return button
+    }
+    
+    @objc func quitPressed(sender: UIButton!) {
+        let keyDest = cls.key_dest
+        let inConsole = (keyDest == keydest_t(1))  // key_console is 1
+        
+        if inConsole {
+            // In console, act as escape key
+            Key_Event(27, qboolean(1), qboolean(1))  // ESC key press
+            Key_Event(27, qboolean(0), qboolean(1))  // ESC key release
+        } else {
+            // In game, disconnect
+            let command = "disconnect\n"
+            command.withCString { ptr in
+                Cbuf_AddText(UnsafeMutablePointer(mutating: ptr))
+            }
+        }
+    }
+    
+    @objc func updateControlsVisibility() {
+        // Check game state using cls.key_dest
+        let keyDest = cls.key_dest
+        let inGame = (keyDest == keydest_t(0))      // key_game is 0
+        let inMenu = (keyDest == keydest_t(3))      // key_menu is 3
+        let inConsole = (keyDest == keydest_t(1))   // key_console is 1
+        
+        // Update Q button text based on state
+        if inConsole {
+            quitButton.setTitle("ESC", for: .normal)
+        } else {
+            quitButton.setTitle("Q", for: .normal)
+        }
+        
+        // Hide all controls if console is active
+        if inConsole {
+            fireButton.isHidden = true
+            joystickView.isHidden = true
+            rightJoystickView.isHidden = true
+            prevWeaponButton.isHidden = true
+            nextWeaponButton.isHidden = true
+            quitButton.isHidden = false
+            quitButton.isHidden = true
+            dpadView.isHidden = true
+            enterButton.isHidden = true
+            backButton.isHidden = true
+            return
+        }
+        
+        // Show/hide based on menu vs game
+        if inMenu {
+            // Hide game controls
+            fireButton.isHidden = true
+            joystickView.isHidden = true
+            rightJoystickView.isHidden = true
+            prevWeaponButton.isHidden = true
+            nextWeaponButton.isHidden = true
+            quitButton.isHidden = true
+            
+            // Show menu controls
+            dpadView.isHidden = false
+            enterButton.isHidden = false
+            backButton.isHidden = false
+        } else if inGame {
+            // Show game controls
+            fireButton.isHidden = false
+            joystickView.isHidden = false
+            rightJoystickView.isHidden = false
+            prevWeaponButton.isHidden = false
+            nextWeaponButton.isHidden = false
+            
+            #if USE_IOS_GAMECONTROLLER
+            quitButton.isHidden = iOS_IsControllerConnected()
+            #else
+            quitButton.isHidden = false
+            #endif
+            
+            // Hide menu controls
+            dpadView.isHidden = true
+            enterButton.isHidden = true
+            backButton.isHidden = true
+        }
+    }
 
     
     @objc func firePressed(sender: UIButton!) {
@@ -338,6 +615,54 @@ extension SDL_uikitviewcontroller {
     @objc func nextWeaponReleased(sender: UIButton!) {
         Key_Event(184, qboolean(0), qboolean(1))
     }
+    
+    @objc func dpadUpPressed() {
+        Key_Event(132, qboolean(1), qboolean(1))  // Up arrow
+    }
+
+    @objc func dpadUpReleased() {
+        Key_Event(132, qboolean(0), qboolean(1))
+    }
+
+    @objc func dpadDownPressed() {
+        Key_Event(133, qboolean(1), qboolean(1))  // Down arrow
+    }
+
+    @objc func dpadDownReleased() {
+        Key_Event(133, qboolean(0), qboolean(1))
+    }
+
+    @objc func dpadLeftPressed() {
+        Key_Event(134, qboolean(1), qboolean(1))  // Left arrow
+    }
+
+    @objc func dpadLeftReleased() {
+        Key_Event(134, qboolean(0), qboolean(1))
+    }
+
+    @objc func dpadRightPressed() {
+        Key_Event(135, qboolean(1), qboolean(1))  // Right arrow
+    }
+
+    @objc func dpadRightReleased() {
+        Key_Event(135, qboolean(0), qboolean(1))
+    }
+
+    @objc func enterPressed() {
+        Key_Event(13, qboolean(1), qboolean(1))  // Enter key
+    }
+
+    @objc func enterReleased() {
+        Key_Event(13, qboolean(0), qboolean(1))
+    }
+
+    @objc func backPressed() {
+        Key_Event(27, qboolean(1), qboolean(1))  // Escape key
+    }
+
+    @objc func backReleased() {
+        Key_Event(27, qboolean(0), qboolean(1))
+    }
 
 
     @objc func expand(_ sender: Any) {
@@ -362,28 +687,52 @@ extension SDL_uikitviewcontroller {
 
 extension SDL_uikitviewcontroller: JoystickDelegate {
     
-    func handleJoyStickPosition(x: CGFloat, y: CGFloat) {
-
-        if y > 0 {
-            cl_joyscale_y.0 = Int32(abs(y) * 60)
-            Key_Event(132, qboolean(1), qboolean(1))
-            Key_Event(133, qboolean(0), qboolean(1))
-        } else if y < 0 {
-            cl_joyscale_y.1 = Int32(abs(y) * 60)
-            Key_Event(132, qboolean(0), qboolean(1))
-            Key_Event(133, qboolean(1), qboolean(1))
+    func handleJoyStickPosition(sender: JoyStickView, x: CGFloat, y: CGFloat) {
+        // Smaller deadzone as requested
+        let deadzone: CGFloat = 0.08  // Reduced from 0.15
+        
+        // Apply deadzone
+        var adjustedX = x
+        var adjustedY = y
+        let magnitude = sqrt(x * x + y * y)
+        
+        if magnitude < deadzone {
+            adjustedX = 0
+            adjustedY = 0
         } else {
-            cl_joyscale_y.0 = 0
-            cl_joyscale_y.1 = 0
-            Key_Event(132, qboolean(0), qboolean(1))
-            Key_Event(133, qboolean(0), qboolean(1))
+            // Scale from deadzone to 1.0
+            let scaledMagnitude = (magnitude - deadzone) / (1.0 - deadzone)
+            adjustedX = (x / magnitude) * scaledMagnitude
+            adjustedY = (y / magnitude) * scaledMagnitude
         }
         
-        cl_joyscale_x.0 = Int32(x * 20)        
+        if sender.tag == 2 {
+            // RIGHT JOYSTICK - Direct analog control like gamepad
+            let sensitivity: CGFloat = 1.5  // Inrease for faster looking
+            let acceleration: CGFloat = 2.3
+            
+            // Apply acceleration curve
+            let xSign: CGFloat = adjustedX < 0 ? -1.0 : 1.0
+            let ySign: CGFloat = adjustedY < 0 ? -1.0 : 1.0
+            let accelX = xSign * pow(abs(adjustedX), acceleration)
+            let accelY = ySign * pow(abs(adjustedY), acceleration)
+            
+            // Set analog values directly like gamepad
+            joystick_yaw = Float(accelX * sensitivity)
+            
+            // FIX Y-AXIS: Remove the negative sign! Positive Y = look down
+            joystick_pitch = Float(accelY * sensitivity)  // NO NEGATIVE!
+            
+        } else {
+            // LEFT JOYSTICK - Direct analog control
+            let moveSensitivity: CGFloat = 1.5  // Add this for movement sensitivity
+                
+            joystick_sidemove = Float(adjustedX * moveSensitivity)
+            joystick_forwardmove = Float(-adjustedY * moveSensitivity) // -Y for inverted axis
+        }
     }
     
-    func handleJoyStick(angle: CGFloat, displacement: CGFloat) {
-//        print("angle: \(angle) displacement: \(displacement)")
+    func handleJoyStick(sender: JoyStickView, angle: CGFloat, displacement: CGFloat) {
+        // Unused but required by protocol
     }
-    
 }

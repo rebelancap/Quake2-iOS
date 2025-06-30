@@ -37,6 +37,12 @@
 #include <UIKit/UIKit.h>
 #include <SDL_syswm.h>
 
+extern int Key_GetCatcher(void);
+
+#ifdef USE_IOS_GAMECONTROLLER
+#include "../../Quake2-iOS/ios_gamecontroller_bridge.h"
+#endif
+
 #if TARGET_OS_TV
 #if BASEQ2
 #import "Quake2_tvOS-Swift.h"
@@ -66,6 +72,11 @@ static int last_flags = 0;
 static SDL_Window* window = NULL;
 static qboolean initSuccessful = false;
 
+// Also change GetSDLWindow to return void*
+void* GetSDLWindow(void) {
+    return (void*)window;
+}
+
 // --------
 
 UIViewController* GetSDLViewController(SDL_Window *sdlWindow) {
@@ -78,6 +89,55 @@ UIViewController* GetSDLViewController(SDL_Window *sdlWindow) {
     UIWindow *appWindow = systemWindowInfo.info.uikit.window;
     UIViewController *rootVC = appWindow.rootViewController;
     return rootVC;
+}
+
+void HideOnScreenControls(void *sdlWindow) {
+#if !TARGET_OS_TV
+    SDL_Window *window = (SDL_Window *)sdlWindow;
+    SDL_uikitviewcontroller *rootVC = (SDL_uikitviewcontroller *)GetSDLViewController(window);
+    if (!rootVC) return;
+    
+    // Hide all control subviews
+    for (UIView *subview in rootVC.view.subviews) {
+        if ([subview isKindOfClass:[JoyStickView class]] ||
+            [subview isKindOfClass:[UIButton class]] ||
+            [subview isKindOfClass:[UIStackView class]] ||
+            [subview isKindOfClass:[UIView class]]) {  // This will catch the dpadView
+            subview.hidden = YES;
+            [subview removeFromSuperview];
+        }
+    }
+#endif
+}
+
+void ShowOnScreenControls(void *sdlWindow) {
+#if !TARGET_OS_TV
+#ifdef USE_IOS_GAMECONTROLLER
+    // Don't show if controller is connected
+    if (iOS_IsControllerConnected()) {
+        return;
+    }
+#endif
+    
+    SDL_Window *window = (SDL_Window *)sdlWindow;
+    SDL_uikitviewcontroller *rootVC = (SDL_uikitviewcontroller *)GetSDLViewController(window);
+    if (!rootVC) return;
+    
+    // Re-add controls
+    [rootVC.view addSubview:[rootVC fireButtonWithRect:[rootVC.view frame]]];
+    [rootVC.view addSubview:[rootVC joyStickWithRect:[rootVC.view frame]]];
+    [rootVC.view addSubview:[rootVC rightJoyStickWithRect:[rootVC.view frame]]];
+    // [rootVC.view addSubview:[rootVC buttonStackWithRect:[rootVC.view frame]]];  // Commented out
+    [rootVC.view addSubview:[rootVC f1ButtonWithRect:[rootVC.view frame]]];
+    [rootVC.view addSubview:[rootVC prevWeaponButtonWithRect:[rootVC.view frame]]];
+    [rootVC.view addSubview:[rootVC nextWeaponButtonWithRect:[rootVC.view frame]]];
+    [rootVC.view addSubview:[rootVC quitButtonWithRect:[rootVC.view frame]]];
+    
+    // Add menu controls
+    [rootVC.view addSubview:[rootVC dpadViewWithRect:[rootVC.view frame]]];
+    [rootVC.view addSubview:[rootVC enterButtonWithRect:[rootVC.view frame]]];
+    [rootVC.view addSubview:[rootVC backButtonWithRect:[rootVC.view frame]]];
+#endif
 }
 
 static qboolean
@@ -378,13 +438,35 @@ GLimp_InitGraphics(int fullscreen, int *pwidth, int *pheight)
     SDL_uikitviewcontroller *rootVC = (SDL_uikitviewcontroller *)GetSDLViewController(window);
     NSLog(@"root VC = %@",rootVC);
 
-    [rootVC.view addSubview:[rootVC fireButtonWithRect:[rootVC.view frame]]];
-    [rootVC.view addSubview:[rootVC jumpButtonWithRect:[rootVC.view frame]]];
-    [rootVC.view addSubview:[rootVC joyStickWithRect:[rootVC.view frame]]];
-    [rootVC.view addSubview:[rootVC buttonStackWithRect:[rootVC.view frame]]];
-    [rootVC.view addSubview:[rootVC f1ButtonWithRect:[rootVC.view frame]]];
-    [rootVC.view addSubview:[rootVC prevWeaponButtonWithRect:[rootVC.view frame]]];
-    [rootVC.view addSubview:[rootVC nextWeaponButtonWithRect:[rootVC.view frame]]];
+#ifdef USE_IOS_GAMECONTROLLER
+    // Check if controller is connected before adding controls
+    extern int iOS_IsControllerConnected(void);
+    if (!iOS_IsControllerConnected()) {
+#endif
+        [rootVC.view addSubview:[rootVC fireButtonWithRect:[rootVC.view frame]]];
+//        [rootVC.view addSubview:[rootVC jumpButtonWithRect:[rootVC.view frame]]];
+        [rootVC.view addSubview:[rootVC joyStickWithRect:[rootVC.view frame]]];
+        [rootVC.view addSubview:[rootVC rightJoyStickWithRect:[rootVC.view frame]]];
+//        [rootVC.view addSubview:[rootVC buttonStackWithRect:[rootVC.view frame]]];
+        [rootVC.view addSubview:[rootVC f1ButtonWithRect:[rootVC.view frame]]];
+        [rootVC.view addSubview:[rootVC prevWeaponButtonWithRect:[rootVC.view frame]]];
+        [rootVC.view addSubview:[rootVC nextWeaponButtonWithRect:[rootVC.view frame]]];
+        [rootVC.view addSubview:[rootVC quitButtonWithRect:[rootVC.view frame]]];
+        // menu navigation
+        [rootVC.view addSubview:[rootVC dpadViewWithRect:[rootVC.view frame]]];
+        [rootVC.view addSubview:[rootVC enterButtonWithRect:[rootVC.view frame]]];
+        [rootVC.view addSubview:[rootVC backButtonWithRect:[rootVC.view frame]]];
+#ifdef USE_IOS_GAMECONTROLLER
+    } else {
+        NSLog(@"Controller detected at startup, skipping on-screen controls");
+    }
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (iOS_IsControllerConnected()) {
+            HideOnScreenControls(window);
+            NSLog(@"Controller detected after delay, hiding controls");
+        }
+    });
+#endif
 #endif
 
 	initSuccessful = true;
@@ -501,4 +583,13 @@ void VID_FlushCommands(void) {
     }
     
     Com_Printf("VID_FlushCommands: GPU flush complete\n");
+}
+
+void UpdateOnScreenControlsVisibility(void) {
+#if !TARGET_OS_TV
+    SDL_uikitviewcontroller *rootVC = (SDL_uikitviewcontroller *)GetSDLViewController(window);
+    if (!rootVC) return;
+    
+    [rootVC updateControlsVisibility];
+#endif
 }

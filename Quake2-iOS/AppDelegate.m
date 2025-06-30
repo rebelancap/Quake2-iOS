@@ -6,6 +6,7 @@
 //
 
 #import "AppDelegate.h"
+#import <GameController/GameController.h>
 
 @implementation SDLUIKitDelegate (customDelegate)
 
@@ -174,6 +175,17 @@
     completionHandler(handled);
 }
 
+// Add these controller notification methods
+- (void)controllerDidConnect:(NSNotification *)notification {
+    GCController *controller = notification.object;
+    NSLog(@"AppDelegate: Controller connected: %@", controller.vendorName);
+}
+
+- (void)controllerDidDisconnect:(NSNotification *)notification {
+    GCController *controller = notification.object;
+    NSLog(@"AppDelegate: Controller disconnected: %@", controller.vendorName);
+}
+
 // override the direct execution of SDL_main to allow us to implement our own frontend
 - (void)postFinishLaunch
 {
@@ -183,6 +195,68 @@
     [[UIApplication sharedApplication] setStatusBarHidden:YES];
 #endif
     
+    // Create a temporary UIWindow to ensure UIKit is fully initialized
+    self.uiwindow = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+    self.uiwindow.backgroundColor = [UIColor blackColor];
+    UIViewController *tempVC = [[UIViewController alloc] init];
+    tempVC.view.backgroundColor = [UIColor blackColor];
+    self.uiwindow.rootViewController = tempVC;
+    [self.uiwindow makeKeyAndVisible];
+    
+    // Show a loading message
+    UILabel *loadingLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 300, 50)];
+    loadingLabel.center = tempVC.view.center;
+    loadingLabel.text = @"Initializing...";
+    loadingLabel.textColor = [UIColor whiteColor];
+    loadingLabel.textAlignment = NSTextAlignmentCenter;
+    [tempVC.view addSubview:loadingLabel];
+    
+    // Set up notifications FIRST
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(controllerDidConnect:)
+                                                 name:GCControllerDidConnectNotification
+                                               object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(controllerDidDisconnect:)
+                                                 name:GCControllerDidDisconnectNotification
+                                               object:nil];
+    
+    // Initialize GameController framework with a shorter delay
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        NSLog(@"AppDelegate: Initializing GameController framework after delay...");
+        
+        // Force controller discovery
+        [GCController startWirelessControllerDiscoveryWithCompletionHandler:^{
+            NSLog(@"AppDelegate: Controller discovery completed");
+        }];
+        
+        // Check for controllers
+        NSArray *controllers = [GCController controllers];
+        NSLog(@"AppDelegate: Initial check: %lu controllers", (unsigned long)controllers.count);
+        
+        if (controllers.count > 0) {
+            for (GCController *controller in controllers) {
+                NSLog(@"AppDelegate: Found controller: %@", controller.vendorName);
+            }
+            // Found controller, launch immediately
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [self launchGame];
+            });
+        } else {
+            // No controller found yet, wait a bit more for wired controllers
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                NSArray *controllersSecondCheck = [GCController controllers];
+                NSLog(@"AppDelegate: Second check: %lu controllers", (unsigned long)controllersSecondCheck.count);
+                
+                // Launch game regardless (controller might connect later via notification)
+                [self launchGame];
+            });
+        }
+    });
+}
+
+- (void)launchGame {
     // Get launch parameters
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     NSString *launchMod = [defaults stringForKey:@"launchMod"];
@@ -238,12 +312,6 @@
     
     if (!baseq2Exists || !modExists) {
         // Create a simple window and show alert
-        self.uiwindow = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-        self.uiwindow.backgroundColor = [UIColor blackColor];
-        UIViewController *rootVC = [[UIViewController alloc] init];
-        self.uiwindow.rootViewController = rootVC;
-        [self.uiwindow makeKeyAndVisible];
-        
         NSString *message;
         if (!baseq2Exists) {
             message = @"Game data missing!\n\n"
@@ -295,7 +363,7 @@
         
         [alert addAction:okAction];
         
-        [rootVC presentViewController:alert animated:YES completion:nil];
+        [self.uiwindow.rootViewController presentViewController:alert animated:YES completion:nil];
         
         // Don't continue to game launch
         return;

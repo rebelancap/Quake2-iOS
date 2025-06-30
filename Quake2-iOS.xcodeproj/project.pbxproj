@@ -294,6 +294,8 @@
 		D91EFB1B2DFA0CF40079CDD6 /* ios_ui.m in Sources */ = {isa = PBXBuildFile; fileRef = D91EFB192DFA0CE50079CDD6 /* ios_ui.m */; };
 		D91EFB1C2DFA0CF40079CDD6 /* ios_ui.m in Sources */ = {isa = PBXBuildFile; fileRef = D91EFB192DFA0CE50079CDD6 /* ios_ui.m */; };
 		D91EFB272DFAA3AD0079CDD6 /* JoyStickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91EFB262DFAA3AD0079CDD6 /* JoyStickView.swift */; };
+		D9D7DBC92E121FB200F429AF /* IOSGameController.m in Sources */ = {isa = PBXBuildFile; fileRef = D9D7DBC82E121FB000F429AF /* IOSGameController.m */; };
+		D9D7DBCC2E121FE100F429AF /* ios_gamecontroller_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = D9D7DBCB2E121FE000F429AF /* ios_gamecontroller_bridge.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -727,6 +729,10 @@
 		D90E6AB62E0DDBCB00E1BFF0 /* baseaq */ = {isa = PBXFileReference; lastKnownFileType = folder; path = baseaq; sourceTree = "<group>"; };
 		D91EFB192DFA0CE50079CDD6 /* ios_ui.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ios_ui.m; sourceTree = "<group>"; };
 		D91EFB262DFAA3AD0079CDD6 /* JoyStickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoyStickView.swift; sourceTree = "<group>"; };
+		D9D7DBC72E121F9900F429AF /* IOSGameController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IOSGameController.h; sourceTree = "<group>"; };
+		D9D7DBC82E121FB000F429AF /* IOSGameController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = IOSGameController.m; sourceTree = "<group>"; };
+		D9D7DBCA2E121FD100F429AF /* ios_gamecontroller_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ios_gamecontroller_bridge.h; sourceTree = "<group>"; };
+		D9D7DBCB2E121FE000F429AF /* ios_gamecontroller_bridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ios_gamecontroller_bridge.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -734,11 +740,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A16B76D524ACE1A500D96F09 /* AVFoundation.framework in Frameworks */,
+				A1ED7A452644E6EC0039EB2E /* CoreHaptics.framework in Frameworks */,
 				A16B770824ACE9AB00D96F09 /* GameController.framework in Frameworks */,
+				A16B76D524ACE1A500D96F09 /* AVFoundation.framework in Frameworks */,
 				A16B76D724ACE1A500D96F09 /* CoreBluetooth.framework in Frameworks */,
 				A16B76D424ACE1A500D96F09 /* AudioToolbox.framework in Frameworks */,
-				A1ED7A452644E6EC0039EB2E /* CoreHaptics.framework in Frameworks */,
 				A1ED7A3D2644E6C80039EB2E /* libsdl2_0_14_ios.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1457,6 +1463,10 @@
 		A15BF74921FCF773005F4B74 /* Quake2-iOS */ = {
 			isa = PBXGroup;
 			children = (
+				D9D7DBCB2E121FE000F429AF /* ios_gamecontroller_bridge.m */,
+				D9D7DBCA2E121FD100F429AF /* ios_gamecontroller_bridge.h */,
+				D9D7DBC82E121FB000F429AF /* IOSGameController.m */,
+				D9D7DBC72E121F9900F429AF /* IOSGameController.h */,
 				A1C1204E21FD178100EAD9CB /* dpquake.ttf */,
 				A1B80AF121F98E6400560711 /* Quake2-iOS.xcassets */,
 				A1B80A0221F438C200560711 /* Quake2LaunchScreen.storyboard */,
@@ -2351,6 +2361,7 @@
 			files = (
 				A15BF72F21FCDD7A005F4B74 /* qal.c in Sources */,
 				A15BF72B21FCDD7A005F4B74 /* cl_cin.c in Sources */,
+				D9D7DBC92E121FB200F429AF /* IOSGameController.m in Sources */,
 				A15BF73B21FCDD7A005F4B74 /* cl_view.c in Sources */,
 				A15BF64F21FCDD7A005F4B74 /* infantry.c in Sources */,
 				A15BF63721FCDD7A005F4B74 /* g_target.c in Sources */,
@@ -2459,6 +2470,7 @@
 				A15BF67721FCDD7A005F4B74 /* clientserver.c in Sources */,
 				A15BF65D21FCDD7A005F4B74 /* boss31.c in Sources */,
 				A15BF73521FCDD7A005F4B74 /* sdl.c in Sources */,
+				D9D7DBCC2E121FE100F429AF /* ios_gamecontroller_bridge.m in Sources */,
 				A15BF64521FCDD7A005F4B74 /* supertank.c in Sources */,
 				A15BF67D21FCDD7A005F4B74 /* cmdparser.c in Sources */,
 				A1C1267D220908DF00EAD9CB /* Extensions.swift in Sources */,

@@ -472,10 +472,14 @@ CL_BaseMove(usercmd_t *cmd)
         cmd->sidemove -= cl_sidespeed->value * CL_KeyState(&in_left);
     }
     
-    cmd->sidemove += cl_joyscale_x[0] * 2.0f * CL_KeyState(&in_moveright);
-    cmd->sidemove -= cl_joyscale_x[1] * 2.0f * CL_KeyState(&in_moveleft);
-    
-    cl.viewangles[YAW] -= cl_joyscale_x[0];
+    // FIXED: Use separate array indices to avoid conflict
+    // cl_joyscale_x[0] is now ONLY for turning
+    // cl_joyscale_x[1] is for left strafe
+    // cl_joyscale_x[2] is for right strafe (NEW!)
+    cmd->sidemove += cl_joyscale_x[2] * 2.0f * CL_KeyState(&in_moveright);  // Changed from [0] to [2]
+    cmd->sidemove -= cl_joyscale_x[1] * 2.0f * CL_KeyState(&in_moveleft);   // This stays the same
+
+    cl.viewangles[YAW] -= cl_joyscale_x[0];  // Now ONLY used for turning
     
     cmd->upmove = cl_upspeed->value * CL_KeyState(&in_up);
     cmd->upmove -= cl_upspeed->value * CL_KeyState(&in_down);
