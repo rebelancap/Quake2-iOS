@@ -820,6 +820,234 @@ extern void GL3_LoadMD2(gl3model_t *mod, void *buffer, int modfilelen);
 extern void GL3_LoadSP2(gl3model_t *mod, void *buffer, int modfilelen);
 
 /*
+=================
+GL3_LoadMD3
+Basic MD3 to MD2 converter - loads only first surface
+=================
+*/
+static void
+GL3_LoadMD3(gl3model_t *mod, void *buffer, int modfilelen)
+{
+    int i, j;
+    dmd3header_t *pinmodel;
+    dmd3surface_t *pinsurface;
+    dmd3frame_t *pinframe;
+    int version;
+    dmdl_t *poutmodel;
+    int total_size;
+    
+    pinmodel = (dmd3header_t *)buffer;
+    version = LittleLong(pinmodel->version);
+    
+    if (version != MD3_VERSION)
+    {
+        ri.Sys_Error(ERR_DROP, "%s has wrong version number (%i should be %i)",
+                     mod->name, version, MD3_VERSION);
+    }
+    
+    // MD3 models can have multiple surfaces, we only load the first
+    int numSurfaces = LittleLong(pinmodel->numSurfaces);
+    if (numSurfaces <= 0)
+    {
+        ri.Sys_Error(ERR_DROP, "%s has no surfaces", mod->name);
+    }
+    
+    // Get first surface
+    pinsurface = (dmd3surface_t *)((byte *)buffer + LittleLong(pinmodel->ofsSurfaces));
+
+    // Convert to MD2 format
+    int numFrames = LittleLong(pinsurface->numFrames);
+    int numVerts = LittleLong(pinsurface->numVerts);
+    int numTris = LittleLong(pinsurface->numTriangles);
+    
+    // First, calculate framesize
+    int framesize = sizeof(daliasframe_t) + numVerts * sizeof(dtrivertx_t);
+
+    // We need to allocate enough space for the converted MD2 data
+    // AND ensure we can read all the MD3 data
+    int md3_size = LittleLong(pinsurface->ofsEnd);  // Size of the MD3 surface
+    int md2_size = sizeof(dmdl_t) +                  // header
+                   1 * MAX_SKINNAME +                 // 1 skin name
+                   numVerts * sizeof(dstvert_t) +     // ST coords
+                   numTris * sizeof(dtriangle_t) +    // triangles
+                   numFrames * framesize +            // frames with vertices
+                   0;                                 // no GL commands
+
+    total_size = md2_size;  // We only need to allocate space for MD2
+
+    mod->extradata = Hunk_Begin(total_size);
+    if (!mod->extradata) {
+        ri.Sys_Error(ERR_DROP, "GL3_LoadMD3: out of hunk memory (need %d bytes)", total_size);
+    }
+
+    poutmodel = Hunk_Alloc(total_size);
+    if (!poutmodel) {
+        ri.Sys_Error(ERR_DROP, "GL3_LoadMD3: failed to allocate %d bytes", total_size);
+    }
+    memset(poutmodel, 0, total_size);
+
+    // NOW fill in the MD2 header
+    poutmodel->ident = IDALIASHEADER;
+    poutmodel->version = ALIAS_VERSION;
+    poutmodel->skinwidth = 256;
+    poutmodel->skinheight = 256;
+    poutmodel->framesize = framesize;
+    poutmodel->num_skins = 1;
+    poutmodel->num_xyz = numVerts;
+    poutmodel->num_st = numVerts;
+    poutmodel->num_tris = numTris;
+    poutmodel->num_glcmds = 0;
+    poutmodel->num_frames = numFrames;
+
+    // Set up offsets
+    poutmodel->ofs_skins = sizeof(dmdl_t);
+    poutmodel->ofs_st = poutmodel->ofs_skins + poutmodel->num_skins * MAX_SKINNAME;
+    poutmodel->ofs_tris = poutmodel->ofs_st + poutmodel->num_st * sizeof(dstvert_t);
+    poutmodel->ofs_frames = poutmodel->ofs_tris + poutmodel->num_tris * sizeof(dtriangle_t);
+    poutmodel->ofs_glcmds = poutmodel->ofs_frames + poutmodel->num_frames * poutmodel->framesize;
+    poutmodel->ofs_end = poutmodel->ofs_glcmds;
+
+    // ADD THE SANITY CHECK HERE:
+    if (poutmodel->ofs_end > total_size) {
+        ri.Sys_Error(ERR_DROP, "GL3_LoadMD3: calculated offsets exceed allocated size!");
+    }
+
+    // Verify frame size
+    int actual_framesize = poutmodel->ofs_glcmds - poutmodel->ofs_frames;
+
+    // Copy skin name to the correct location
+    char *skinname = (char *)poutmodel + poutmodel->ofs_skins;
+    strcpy(skinname, "models/default.pcx");
+
+    // Set up dummy ST coordinates at the correct offset
+    dstvert_t *poutst = (dstvert_t *)((byte *)poutmodel + poutmodel->ofs_st);
+    float *pinst = (float *)((byte *)pinsurface + LittleLong(pinsurface->ofsST));
+
+    for (i = 0; i < numVerts; i++)
+    {
+        poutst[i].s = (short)(LittleFloat(pinst[i * 2 + 0]) * poutmodel->skinwidth);
+        poutst[i].t = (short)(LittleFloat(pinst[i * 2 + 1]) * poutmodel->skinheight);
+    }
+    
+    // Load frames from MD3
+    // Load frames from MD3
+    int vertexOffset = LittleLong(pinsurface->ofsVertexes);
+
+    for (i = 0; i < numFrames; i++)
+    {
+        daliasframe_t *poutframe = (daliasframe_t *)((byte *)poutmodel +
+                                   poutmodel->ofs_frames + i * poutmodel->framesize);
+        
+        // Get MD3 frame info
+        pinframe = (dmd3frame_t *)((byte *)buffer + LittleLong(pinmodel->ofsFrames) +
+                                   i * sizeof(dmd3frame_t));
+        
+        strcpy(poutframe->name, pinframe->name);
+        
+        // Calculate scale and translate
+        for (j = 0; j < 3; j++)
+        {
+            float min = LittleFloat(pinframe->mins[j]);
+            float max = LittleFloat(pinframe->maxs[j]);
+            
+            // Ensure we have valid bounds
+            if (max <= min) {
+                max = min + 1.0f;
+            }
+            
+            poutframe->scale[j] = (max - min) / 255.0f;
+            if (poutframe->scale[j] <= 0) {
+                poutframe->scale[j] = 1.0f / 255.0f;
+            }
+            poutframe->translate[j] = min;
+        }
+        
+        // Convert vertices
+        dtrivertx_t *poutvert = poutframe->verts;
+
+        // MD3 vertices are stored as shorts, not floats!
+        // Each vertex is 8 bytes (4 shorts: x,y,z,normal)
+        short *pinverts = (short *)((byte *)pinsurface + vertexOffset);
+
+        for (j = 0; j < numVerts; j++)
+        {
+            // Get vertex for this frame
+            // MD3 stores all vertices for frame 0, then all for frame 1, etc.
+            short *vert = &pinverts[(i * numVerts + j) * 4];
+            
+            // MD3 stores vertices as shorts with scale factor of 1.0/64
+            vec3_t v;
+            v[0] = (float)(LittleShort(vert[0])) * (1.0f/64.0f);
+            v[1] = (float)(LittleShort(vert[1])) * (1.0f/64.0f);
+            v[2] = (float)(LittleShort(vert[2])) * (1.0f/64.0f);
+            
+            // Scale to byte range
+            poutvert[j].v[0] = (byte)((v[0] - poutframe->translate[0]) / poutframe->scale[0]);
+            poutvert[j].v[1] = (byte)((v[1] - poutframe->translate[1]) / poutframe->scale[1]);
+            poutvert[j].v[2] = (byte)((v[2] - poutframe->translate[2]) / poutframe->scale[2]);
+            poutvert[j].lightnormalindex = 0;
+        }
+    }
+    
+    // Set model type
+    mod->type = mod_alias;
+
+    // Set model bounds (important for culling)
+    mod->mins[0] = LittleFloat(pinframe->mins[0]);
+    mod->mins[1] = LittleFloat(pinframe->mins[1]);
+    mod->mins[2] = LittleFloat(pinframe->mins[2]);
+    mod->maxs[0] = LittleFloat(pinframe->maxs[0]);
+    mod->maxs[1] = LittleFloat(pinframe->maxs[1]);
+    mod->maxs[2] = LittleFloat(pinframe->maxs[2]);
+
+    // Calculate radius for culling
+    float dx = mod->maxs[0] - mod->mins[0];
+    float dy = mod->maxs[1] - mod->mins[1];
+    float dz = mod->maxs[2] - mod->mins[2];
+    mod->radius = sqrt(dx*dx + dy*dy + dz*dz) * 0.5f;
+    
+    // Initialize skins to NULL
+    for (i = 0; i < MAX_MD2SKINS; i++) {
+        mod->skins[i] = NULL;
+    }
+
+    // Try to load shader names from MD3
+    int numShaders = LittleLong(pinsurface->numShaders);
+    if (numShaders > 0 && numShaders < MAX_MD2SKINS) {
+        int ofsShaders = LittleLong(pinsurface->ofsShaders);
+        if (ofsShaders > 0 && ofsShaders < modfilelen) {
+            char *shadername = (char *)((byte *)pinsurface + ofsShaders);
+            // MD3 shaders are 64-byte entries
+            for (i = 0; i < numShaders && i < MAX_MD2SKINS; i++) {
+                char shader_path[MAX_QPATH];
+                strncpy(shader_path, shadername + (i * 64), 63);
+                shader_path[63] = '\0';
+                
+                // Skip empty shader names
+                if (shader_path[0] != '\0') {
+                    // Try to load the shader/texture
+                    mod->skins[i] = GL3_FindImage(shader_path, it_skin);
+                    if (!mod->skins[i]) {
+                        // If failed, try with common extensions
+                        char tex_path[MAX_QPATH];
+                        Com_sprintf(tex_path, sizeof(tex_path), "%s.tga", shader_path);
+                        mod->skins[i] = GL3_FindImage(tex_path, it_skin);
+                    }
+                }
+            }
+        }
+    }
+
+    // If no skins loaded, use a default
+    if (!mod->skins[0]) {
+        mod->skins[0] = GL3_FindImage("pics/colormap.pcx", it_skin);
+    }
+
+    // Make sure extradata points to the model header
+    mod->extradata = poutmodel;
+}
+
+/*
  * Loads in a model for the given name
  */
 static gl3model_t *
@@ -904,6 +1132,10 @@ Mod_ForName(char *name, qboolean crash)
 		case IDALIASHEADER:
 			GL3_LoadMD2(mod, buf, modfilelen);
 			break;
+            
+        case IDMD3HEADER:
+            GL3_LoadMD3(mod, buf, modfilelen);  // Note: GL3_LoadMD3, not Mod_LoadMD3Model
+            break;
 
 		case IDSPRITEHEADER:
 			GL3_LoadSP2(mod, buf, modfilelen);

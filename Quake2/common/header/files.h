@@ -66,7 +66,6 @@ typedef struct
 } pcx_t;
 
 /* .MD2 triangle model file format */
-
 #define IDALIASHEADER (('2' << 24) + ('P' << 16) + ('D' << 8) + 'I')
 #define ALIAS_VERSION 8
 
@@ -75,6 +74,58 @@ typedef struct
 #define MAX_FRAMES 512
 #define MAX_MD2SKINS 32
 #define MAX_SKINNAME 64
+
+/* .MD3 model file format */
+#define IDMD3HEADER (('3' << 24) + ('P' << 16) + ('D' << 8) + 'I')
+#define MD3_VERSION 15
+#define MD3_MAX_TRIANGLES 8192
+#define MD3_MAX_VERTS 4096
+#define MD3_MAX_SHADERS 256
+#define MD3_MAX_FRAMES 1024
+#define MD3_MAX_SURFACES 32
+#define MD3_MAX_TAGS 16
+
+/* MD3 structures - REPLACE THE PREVIOUS ONES WITH THESE */
+typedef struct
+{
+    int ident;            // "IDP3"
+    int version;          // 15
+    char name[64];
+    int flags;
+    int numFrames;
+    int numTags;
+    int numSurfaces;
+    int numSkins;
+    int ofsFrames;
+    int ofsTags;
+    int ofsSurfaces;
+    int ofsEnd;
+} dmd3header_t;
+
+typedef struct
+{
+    vec3_t mins;
+    vec3_t maxs;
+    vec3_t origin;
+    float radius;
+    char name[16];
+} dmd3frame_t;
+
+typedef struct
+{
+    int ident;          // Should be "IDP3" for each surface
+    char name[64];
+    int flags;
+    int numFrames;
+    int numShaders;
+    int numVerts;
+    int numTriangles;
+    int ofsTriangles;
+    int ofsShaders;
+    int ofsST;
+    int ofsVertexes;
+    int ofsEnd;
+} dmd3surface_t;
 
 typedef struct
 {

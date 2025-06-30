@@ -303,7 +303,9 @@
     
     // If we get here, all required game data exists, so launch the game
     dispatch_async(dispatch_get_main_queue(), ^{
-        // Build command line arguments
+        // Get launch parameters from defaults (set by URL scheme or Quick Action)
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        NSString *launchMod = [defaults stringForKey:@"launchMod"];
         NSString *launchMap = [defaults stringForKey:@"launchMap"];
         
         // Start with basic args
@@ -313,29 +315,23 @@
         [args addObject:@"+set"];
         [args addObject:@"gl_retexturing"];
         [args addObject:@"1"];
-
-        // Skip demo and go to menu (important for mods without demo files)
-//        [args addObject:@"+menu_main"];
         
-        // Add mod args
+        // Add mod if specified
         if (launchMod && launchMod.length > 0) {
             [args addObject:@"+set"];
             [args addObject:@"game"];
             [args addObject:launchMod];
-            
-            // Clear the stored mod
-            [defaults removeObjectForKey:@"launchMod"];
         }
         
-        // Add map args
+        // Add map if specified
         if (launchMap && launchMap.length > 0) {
             [args addObject:@"+map"];
             [args addObject:launchMap];
-            
-            // Clear the stored map
-            [defaults removeObjectForKey:@"launchMap"];
         }
         
+        // Clear launch parameters after use
+        [defaults removeObjectForKey:@"launchMod"];
+        [defaults removeObjectForKey:@"launchMap"];
         [defaults synchronize];
         
         // Convert to C args
@@ -347,6 +343,11 @@
             argv[i] = strdup([arg UTF8String]);
         }
         argv[argc] = NULL;
+        
+        NSLog(@"Launching Quake2 with args:");
+        for (int i = 0; i < argc; i++) {
+            NSLog(@"  argv[%d]: %s", i, argv[i]);
+        }
         
         // Call the real Quake 2 main
         extern int Sys_Startup(int argc, char **argv);

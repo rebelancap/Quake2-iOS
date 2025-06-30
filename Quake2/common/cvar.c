@@ -647,20 +647,27 @@ qboolean userinfo_modified;
 char *
 Cvar_BitInfo(int bit)
 {
-	static char info[MAX_INFO_STRING];
-	cvar_t *var;
+    static char info[MAX_INFO_STRING];
+    cvar_t *var;
 
-	info[0] = 0;
+    info[0] = 0;
 
-	for (var = cvar_vars; var; var = var->next)
-	{
-		if (var->flags & bit)
-		{
-			Info_SetValueForKey(info, var->name, var->string);
-		}
-	}
+    for (var = cvar_vars; var; var = var->next)
+    {
+        if (var->flags & bit)
+        {
+            Info_SetValueForKey(info, var->name, var->string);
+        }
+        // HACK: Force name into userinfo
+        else if (strcmp(var->name, "name") == 0 && bit == CVAR_USERINFO)
+        {
+            // Remove or comment out the debug print
+            // Com_Printf("DEBUG: Forcing name into userinfo\n");
+            Info_SetValueForKey(info, var->name, var->string);
+        }
+    }
 
-	return info;
+    return info;
 }
 
 /*

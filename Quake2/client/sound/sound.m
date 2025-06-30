@@ -137,7 +137,7 @@ S_LoadSound(sfx_t *s)
 
 	if (info.channels != 1)
 	{
-		Com_Printf("%s is a stereo sample\n", s->name);
+		Com_DPrintf("%s is a stereo sample\n", s->name); // developer mode only
 		FS_FreeFile(data);
 		return NULL;
 	}

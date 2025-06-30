@@ -26,6 +26,7 @@
  */
 
 #include "header/local.h"
+#include <stdlib.h>
 
 typedef struct
 {
@@ -215,55 +216,59 @@ GL3_Upload32(unsigned *data, int width, int height, qboolean mipmap)
 qboolean
 GL3_Upload8(byte *data, int width, int height, qboolean mipmap, qboolean is_sky)
 {
-	unsigned trans[512 * 256];
-	int i, s;
-	int p;
+    unsigned *trans;
+    int i, s;
+    int p;
 
-	s = width * height;
+    s = width * height;
 
-	if (s > sizeof(trans) / 4)
-	{
-		ri.Sys_Error(ERR_DROP, "GL3_Upload8: too large");
-	}
+    // Dynamically allocate memory for any size texture
+    trans = malloc(s * sizeof(unsigned));
+    if (!trans)
+    {
+        ri.Sys_Error(ERR_DROP, "GL3_Upload8: couldn't allocate %d bytes", s * sizeof(unsigned));
+    }
 
-	for (i = 0; i < s; i++)
-	{
-		p = data[i];
-		trans[i] = d_8to24table[p];
+    for (i = 0; i < s; i++)
+    {
+        p = data[i];
+        trans[i] = d_8to24table[p];
 
-		/* transparent, so scan around for
-		   another color to avoid alpha fringes */
-		if (p == 255)
-		{
-			if ((i > width) && (data[i - width] != 255))
-			{
-				p = data[i - width];
-			}
-			else if ((i < s - width) && (data[i + width] != 255))
-			{
-				p = data[i + width];
-			}
-			else if ((i > 0) && (data[i - 1] != 255))
-			{
-				p = data[i - 1];
-			}
-			else if ((i < s - 1) && (data[i + 1] != 255))
-			{
-				p = data[i + 1];
-			}
-			else
-			{
-				p = 0;
-			}
+        /* transparent, so scan around for
+           another color to avoid alpha fringes */
+        if (p == 255)
+        {
+            if ((i > width) && (data[i - width] != 255))
+            {
+                p = data[i - width];
+            }
+            else if ((i < s - width) && (data[i + width] != 255))
+            {
+                p = data[i + width];
+            }
+            else if ((i > 0) && (data[i - 1] != 255))
+            {
+                p = data[i - 1];
+            }
+            else if ((i < s - 1) && (data[i + 1] != 255))
+            {
+                p = data[i + 1];
+            }
+            else
+            {
+                p = 0;
+            }
 
-			/* copy rgb components */
-			((byte *)&trans[i])[0] = ((byte *)&d_8to24table[p])[0];
-			((byte *)&trans[i])[1] = ((byte *)&d_8to24table[p])[1];
-			((byte *)&trans[i])[2] = ((byte *)&d_8to24table[p])[2];
-		}
-	}
+            /* copy rgb components */
+            ((byte *)&trans[i])[0] = ((byte *)&d_8to24table[p])[0];
+            ((byte *)&trans[i])[1] = ((byte *)&d_8to24table[p])[1];
+            ((byte *)&trans[i])[2] = ((byte *)&d_8to24table[p])[2];
+        }
+    }
 
-	return GL3_Upload32(trans, width, height, mipmap);
+    qboolean result = GL3_Upload32(trans, width, height, mipmap);
+    free(trans);
+    return result;
 }
 
 typedef struct

@@ -1314,11 +1314,19 @@ CL_ParseServerMessage(void)
 				SCR_CenterPrint(MSG_ReadString(&net_message));
 				break;
 
-			case svc_stufftext:
-				s = MSG_ReadString(&net_message);
-				Com_DPrintf("stufftext: %s\n", s);
-				Cbuf_AddText(s);
-				break;
+            case svc_stufftext:
+                s = MSG_ReadString(&net_message);
+                
+                // Filter out AQtion spam
+                if (strstr(s, "cmd_stat_mode") != NULL ||
+                    strstr(s, "actoken") != NULL ||
+                    strstr(s, "cmd c version") != NULL) {
+                    break; // Skip these stufftext commands
+                }
+                
+                Com_DPrintf("stufftext: %s\n", s);
+                Cbuf_AddText(s);
+                break;
 
 			case svc_serverdata:
 				Cbuf_Execute();  /* make sure any stuffed commands are done */

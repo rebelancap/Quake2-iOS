@@ -290,6 +290,7 @@
 		A1ED7A452644E6EC0039EB2E /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1ED7A442644E6E60039EB2E /* CoreHaptics.framework */; };
 		A1ED7A4A2644E7130039EB2E /* libSDL2_0_14_tvos.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A1ED7A492644E70A0039EB2E /* libSDL2_0_14_tvos.a */; };
 		A1ED7A502644E84C0039EB2E /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1ED7A4F2644E8470039EB2E /* CoreHaptics.framework */; };
+		D90E6AB72E0DDBCB00E1BFF0 /* baseaq in Resources */ = {isa = PBXBuildFile; fileRef = D90E6AB62E0DDBCB00E1BFF0 /* baseaq */; };
 		D91EFB1B2DFA0CF40079CDD6 /* ios_ui.m in Sources */ = {isa = PBXBuildFile; fileRef = D91EFB192DFA0CE50079CDD6 /* ios_ui.m */; };
 		D91EFB1C2DFA0CF40079CDD6 /* ios_ui.m in Sources */ = {isa = PBXBuildFile; fileRef = D91EFB192DFA0CE50079CDD6 /* ios_ui.m */; };
 		D91EFB272DFAA3AD0079CDD6 /* JoyStickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91EFB262DFAA3AD0079CDD6 /* JoyStickView.swift */; };
@@ -299,7 +300,7 @@
 		8D1107310486CEB800E47090 /* Quake2-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Quake2-Info.plist"; sourceTree = "<group>"; };
 		A15BF4D721FCDD7A005F4B74 /* network.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = network.c; sourceTree = "<group>"; };
 		A15BF4D821FCDD7A005F4B74 /* signalhandler.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = signalhandler.c; sourceTree = "<group>"; };
-		A15BF4D921FCDD7A005F4B74 /* system.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = system.c; sourceTree = "<group>"; };
+		A15BF4D921FCDD7A005F4B74 /* system.c */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.objc; fileEncoding = 4; path = system.c; sourceTree = "<group>"; };
 		A15BF4DB21FCDD7A005F4B74 /* hunk.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = hunk.c; sourceTree = "<group>"; };
 		A15BF4DC21FCDD7A005F4B74 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		A15BF4DE21FCDD7A005F4B74 /* misc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = misc.c; sourceTree = "<group>"; };
@@ -723,6 +724,7 @@
 		A1F1115D23F740E10030D586 /* model.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = model.h; sourceTree = "<group>"; };
 		A1F1115E23F740E10030D586 /* local.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = local.h; sourceTree = "<group>"; };
 		A1F1115F23F740E10030D586 /* sw_edge.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = sw_edge.c; sourceTree = "<group>"; };
+		D90E6AB62E0DDBCB00E1BFF0 /* baseaq */ = {isa = PBXFileReference; lastKnownFileType = folder; path = baseaq; sourceTree = "<group>"; };
 		D91EFB192DFA0CE50079CDD6 /* ios_ui.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ios_ui.m; sourceTree = "<group>"; };
 		D91EFB262DFAA3AD0079CDD6 /* JoyStickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoyStickView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -768,6 +770,7 @@
 		29B97314FDCFA39411CA2CEA /* CustomTemplate */ = {
 			isa = PBXGroup;
 			children = (
+				D90E6AB62E0DDBCB00E1BFF0 /* baseaq */,
 				A15BF4D421FCDD7A005F4B74 /* Quake2 */,
 				A15BF74921FCF773005F4B74 /* Quake2-iOS */,
 				A1C125012204F5F900EAD9CB /* Quake2-tvOS */,
@@ -2224,6 +2227,7 @@
 			buildConfigurationList = A1B80ADD21F96DAA00560711 /* Build configuration list for PBXNativeTarget "Quake2-iOS" */;
 			buildPhases = (
 				A1B80A4621F96DAA00560711 /* Resources */,
+				D90E6AB02E0DD11E00E1BFF0 /* Sign Game Libraries */,
 				A1B80A4D21F96DAA00560711 /* Sources */,
 				A1B80AD021F96DAA00560711 /* Frameworks */,
 			);
@@ -2299,6 +2303,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D90E6AB72E0DDBCB00E1BFF0 /* baseaq in Resources */,
 				A1B80A4721F96DAA00560711 /* Quake2LaunchScreen.storyboard in Resources */,
 				A1C1205421FD178100EAD9CB /* dpquake.ttf in Resources */,
 				A1B80AF421F98E6500560711 /* Quake2-iOS.xcassets in Resources */,
@@ -2316,6 +2321,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		D90E6AB02E0DD11E00E1BFF0 /* Sign Game Libraries */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 8;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Sign Game Libraries";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+			shellPath = /bin/bash;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n#!/bin/bash\n\n# Sign Game Libraries Build Phase Script\n\necho \"=== Processing Bundled Game Dynamic Libraries ===\"\n\n# Function to sign a dylib\nsign_dylib() {\n    local DYLIB_PATH=\"$1\"\n    local DYLIB_NAME=$(basename \"$DYLIB_PATH\")\n    local DYLIB_DIR=$(dirname \"$DYLIB_PATH\")\n    local RELATIVE_DIR=${DYLIB_DIR#$SRCROOT/}\n    \n    echo \"Processing $RELATIVE_DIR/$DYLIB_NAME...\"\n    \n    # Create directory in app bundle if needed\n    mkdir -p \"$CODESIGNING_FOLDER_PATH/$RELATIVE_DIR\"\n    \n    # Copy to app bundle preserving directory structure\n    cp \"$DYLIB_PATH\" \"$CODESIGNING_FOLDER_PATH/$RELATIVE_DIR/$DYLIB_NAME\"\n    \n    # Sign with the same identity as the app\n    /usr/bin/codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" \\\n        --preserve-metadata=identifier,entitlements,flags \\\n        --timestamp=none \\\n        \"$CODESIGNING_FOLDER_PATH/$RELATIVE_DIR/$DYLIB_NAME\"\n    \n    if [ $? -eq 0 ]; then\n        echo \"✅ Signed $DYLIB_NAME in $RELATIVE_DIR\"\n    else\n        echo \"❌ Failed to sign $DYLIB_NAME\"\n        exit 1\n    fi\n}\n\n# Check if we're building for a real device (not simulator)\nif [ \"$PLATFORM_NAME\" != \"iphonesimulator\" ]; then\n    \n    # Look for baseaq folder in the project\n    BASEAQ_PATH=\"$SRCROOT/baseaq\"\n    \n    if [ -d \"$BASEAQ_PATH\" ]; then\n        echo \"Found baseaq folder, processing game library...\"\n        \n        # Find the game library\n        if [ -f \"$BASEAQ_PATH/gamearm64.dylib\" ]; then\n            sign_dylib \"$BASEAQ_PATH/gamearm64.dylib\"\n        else\n            echo \"⚠️  Warning: gamearm64.dylib not found in baseaq folder\"\n            echo \"   Looked in: $BASEAQ_PATH\"\n        fi\n    else\n        echo \"ℹ️  No baseaq folder found in project root\"\n        echo \"   AQtion support will use built-in game code\"\n    fi\nfi\n\necho \"=== Dynamic Library Processing Complete ===\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A1B80A4D21F96DAA00560711 /* Sources */ = {
@@ -2623,6 +2650,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEVELOPMENT_TEAM = 57G8J46Z2T;
+				ENABLE_TESTABILITY = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = NO;
@@ -2640,6 +2668,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Quake2/libs/ios",
+					"$(PROJECT_DIR)/baseaq",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.rebelancap.quake2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2686,6 +2715,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Quake2/libs/ios",
+					"$(PROJECT_DIR)/baseaq",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.rebelancap.quake2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2732,6 +2762,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Quake2/libs/tvos",
+					"$(PROJECT_DIR)/baseaq",
 				);
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -2781,6 +2812,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Quake2/libs/tvos",
+					"$(PROJECT_DIR)/baseaq",
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -2823,16 +2855,12 @@
 				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
 					SDL2,
 					"YQ2OSTYPE=\\\"Darwin\\\"",
 					"YQ2ARCH=\\\"x86_64\\\"",
 					IOS,
 					GLES_SILENCE_DEPRECATION,
 					USE_GLES3,
-					"OSTYPE=\\\"Darwin\\\"",
-					"ARCH=\\\"x86_64\\\"",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
@@ -2846,6 +2874,7 @@
 				);
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
 				SDKROOT = iphoneos;
 				USER_HEADER_SEARCH_PATHS = "";
 			};
@@ -2878,15 +2907,12 @@
 				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
 					SDL2,
 					"YQ2OSTYPE=\\\"Darwin\\\"",
 					"YQ2ARCH=\\\"x86_64\\\"",
 					IOS,
 					GLES_SILENCE_DEPRECATION,
 					USE_GLES3,
-					"OSTYPE=\\\"Darwin\\\"",
-					"ARCH=\\\"x86_64\\\"",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
@@ -2899,6 +2925,7 @@
 					"$(PROJECT_DIR)/Quake2/client/refresh/gl3/glad/include",
 				);
 				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				USER_HEADER_SEARCH_PATHS = "";

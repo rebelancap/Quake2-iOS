@@ -1615,25 +1615,48 @@ FS_BuildGameSpecificSearchPath(char *dir)
 		Cbuf_AddText("vid_restart\nsnd_restart\n");
 	}
 
-	// The game was reset to baseq2. Nothing to do here.
-	if ((Q_stricmp(dir, BASEDIRNAME) == 0) || (*dir == 0)) {
-		Cvar_FullSet("gamedir", "", CVAR_SERVERINFO | CVAR_NOSET);
-		Cvar_FullSet("game", "", CVAR_LATCH | CVAR_SERVERINFO);
+    // The game was reset to baseq2. Nothing to do here.
+    if ((Q_stricmp(dir, BASEDIRNAME) == 0) || (*dir == 0)) {
+        Cvar_FullSet("gamedir", "", CVAR_SERVERINFO | CVAR_NOSET);
+        Cvar_FullSet("game", "", CVAR_LATCH | CVAR_SERVERINFO);
 
-		// fs_gamedir must be reset to the last
-		// dir of the generic search path.
-		Q_strlcpy(fs_gamedir, fs_baseSearchPaths->path, sizeof(fs_gamedir));
-	} else {
-		Cvar_FullSet("gamedir", dir, CVAR_SERVERINFO | CVAR_NOSET);
-		search = fs_rawPath;
+        // fs_gamedir must be reset to the last
+        // dir of the generic search path.
+    #ifdef __APPLE__
+    #if TARGET_OS_IOS
+        const char *docs_dir = Sys_GetDocumentsDirectory();
+        Com_sprintf(fs_gamedir, sizeof(fs_gamedir), "%s/%s", docs_dir, BASEDIRNAME);
+    #else
+        Q_strlcpy(fs_gamedir, fs_baseSearchPaths->path, sizeof(fs_gamedir));
+    #endif
+    #else
+        Q_strlcpy(fs_gamedir, fs_baseSearchPaths->path, sizeof(fs_gamedir));
+    #endif
+    } else {
+        Cvar_FullSet("gamedir", dir, CVAR_SERVERINFO | CVAR_NOSET);
+        search = fs_rawPath;
 
-		while (search != NULL) {
-			Com_sprintf(path, sizeof(path), "%s/%s", search->path, dir);
-			FS_AddDirToSearchPath(path, search->create);
+        while (search != NULL) {
+            Com_sprintf(path, sizeof(path), "%s/%s", search->path, dir);
+            FS_AddDirToSearchPath(path, search->create);
 
-			search = search->next;
-		}
-	}
+            search = search->next;
+        }
+        
+        // Set fs_gamedir to the writable path in Documents
+    #ifdef __APPLE__
+    #if TARGET_OS_IOS
+        const char *docs_dir = Sys_GetDocumentsDirectory();
+        Com_sprintf(fs_gamedir, sizeof(fs_gamedir), "%s/%s", docs_dir, dir);
+    #else
+        // Keep existing behavior for non-iOS
+        Q_strlcpy(fs_gamedir, path, sizeof(fs_gamedir));
+    #endif
+    #else
+        // Keep existing behavior for non-iOS
+        Q_strlcpy(fs_gamedir, path, sizeof(fs_gamedir));
+    #endif
+    }
 
 	// Create the game directory.
 	Sys_Mkdir(fs_gamedir);

@@ -50,6 +50,20 @@
 char homePath[MAX_OSPATH] = { 0 };
 #include "game.h"
 game_export_t *GetGameAPI(game_import_t *import);
+#import <Foundation/Foundation.h>
+#endif
+
+#ifdef IOS
+// Direct reference to the compiled-in GetGameAPI
+extern game_export_t *GetGameAPI(game_import_t *import);
+
+// Ensure the game's globals are properly linked
+extern game_export_t globals;
+#endif
+
+// 4. Also need to declare the console command. Add this near the top of system.c, after the includes:
+#ifdef IOS
+void Cmd_ListGameLibs_f(void);
 #endif
 
 // Pointer to game library
@@ -352,94 +366,180 @@ Sys_UnloadGame(void)
 	game_library = NULL;
 }
 
+// 2. Replace the entire Sys_GetGameAPI function with this version:
 void *
 Sys_GetGameAPI(void *parms)
 {
-    // trying out routing around this for ios -tkidd
-#ifndef IOS
-	void *(*GetGameAPI)(void *);
+#ifdef IOS
+    // iOS-specific dynamic loading implementation
+    static char game_library_path[MAX_OSPATH];
+    const char *gamename = "gamearm64.dylib";
+    char *gamedir;
+    
+    if (game_library)
+    {
+        Com_Error(ERR_FATAL, "Sys_GetGameAPI without Sys_UnloadingGame");
+    }
+    
+    // Get the current game directory
+    cvar_t *game = Cvar_Get("game", "", 0);
+    gamedir = (game && game->string[0]) ? game->string : "baseq2";
+    
+    Com_Printf("LoadLibrary(\"%s/%s\")\n", gamedir, gamename);
+    
+    @autoreleasepool {
+        // For iOS, we'll check two locations:
+        // 1. App bundle (for pre-included mods like AQtion)
+        // 2. Documents directory (for user-installed mods)
+        
+        NSBundle *mainBundle = [NSBundle mainBundle];
+        NSString *bundlePath = [mainBundle bundlePath];
+        NSFileManager *fm = [NSFileManager defaultManager];
+        BOOL found = NO;
+        
+        // First, try the app bundle
+        NSString *bundleLibPath = [NSString stringWithFormat:@"%@/%s/%s", bundlePath, gamedir, gamename];
+        if ([fm fileExistsAtPath:bundleLibPath]) {
+            strncpy(game_library_path, [bundleLibPath UTF8String], sizeof(game_library_path) - 1);
+            game_library_path[sizeof(game_library_path) - 1] = '\0';
+            found = YES;
+            Com_Printf("Found library in bundle: %s\n", game_library_path);
+        }
+        
+        // If not in bundle, try Documents
+        if (!found) {
+            NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+            NSString *docLibPath = [NSString stringWithFormat:@"%@/%s/%s", documentsPath, gamedir, gamename];
+            
+            if ([fm fileExistsAtPath:docLibPath]) {
+                strncpy(game_library_path, [docLibPath UTF8String], sizeof(game_library_path) - 1);
+                game_library_path[sizeof(game_library_path) - 1] = '\0';
+                found = YES;
+                Com_Printf("Found library in Documents: %s\n", game_library_path);
+            }
+        }
+        
+        // If we found a library, try to load it
+        if (found) {
+            game_library = dlopen(game_library_path, RTLD_NOW | RTLD_LOCAL);
+            
+            if (game_library) {
+                Com_Printf("Successfully loaded library\n");
+                
+                void *(*GetGameAPI_func)(void *) = (void *)dlsym(game_library, "GetGameAPI");
 
-	char name[MAX_OSPATH];
-	char *path;
-	char *str_p;
-#ifdef __APPLE__
-	const char *gamename = "game.dylib";
+                if (!GetGameAPI_func) {
+                    Com_Printf("Failed to find GetGameAPI symbol: %s\n", dlerror());
+                    Sys_UnloadGame();
+                } else {
+                    Com_Printf("Found GetGameAPI, returning dynamic game\n");
+                    return GetGameAPI_func(parms);
+                }
+            } else {
+                const char *error = dlerror();
+                Com_Printf("Failed to load library: %s\n", error ? error : "unknown error");
+                
+                if (error && strstr(error, "code signature")) {
+                    Com_Printf("ERROR: Library not properly code signed\n");
+                }
+            }
+        } else {
+            Com_Printf("No dynamic library found for %s\n", gamedir);
+        }
+    }
+    
+    // Replace the vanilla Quake 2 section with:
+    if (strcmp(gamedir, "baseq2") == 0 || strcmp(gamedir, "") == 0)
+    {
+        // Vanilla Quake 2 - just call it like before
+        return GetGameAPI(parms);
+    }
+    
 #else
-	const char *gamename = "game.so";
+    // Original non-iOS implementation stays exactly as it is
+    void *(*GetGameAPI)(void *);
+
+    char name[MAX_OSPATH];
+    char *path;
+    char *str_p;
+#ifdef __APPLE__
+    const char *gamename = "game.dylib";
+#else
+    const char *gamename = "game.so";
 #endif
 
-	if (game_library)
-	{
-		Com_Error(ERR_FATAL, "Sys_GetGameAPI without Sys_UnloadingGame");
-	}
+    if (game_library)
+    {
+        Com_Error(ERR_FATAL, "Sys_GetGameAPI without Sys_UnloadingGame");
+    }
 
-	Com_Printf("LoadLibrary(\"%s\")\n", gamename);
+    Com_Printf("LoadLibrary(\"%s\")\n", gamename);
 
-	/* now run through the search paths */
-	path = NULL;
+    /* now run through the search paths */
+    path = NULL;
 
-	while (1)
-	{
-		FILE *fp;
+    while (1)
+    {
+        FILE *fp;
 
-		path = FS_NextPath(path);
+        path = FS_NextPath(path);
 
-		if (!path)
-		{
-			return NULL;     /* couldn't find one anywhere */
-		}
+        if (!path)
+        {
+            return NULL; /* couldn't find one anywhere */
+        }
 
-		snprintf(name, MAX_OSPATH, "%s/%s", path, gamename);
+        snprintf(name, MAX_OSPATH, "%s/%s", path, gamename);
 
-		/* skip it if it just doesn't exist */
-		fp = fopen(name, "rb");
+        /* skip it if it just doesn't exist */
+        fp = fopen(name, "rb");
 
-		if (fp == NULL)
-		{
-			continue;
-		}
+        if (fp == NULL)
+        {
+            continue;
+        }
 
-		fclose(fp);
+        fclose(fp);
 
-		game_library = dlopen(name, RTLD_NOW);
+        game_library = dlopen(name, RTLD_NOW);
 
-		if (game_library)
-		{
-			Com_MDPrintf("LoadLibrary (%s)\n", name);
-			break;
-		}
-		else
-		{
-			Com_Printf("LoadLibrary (%s):", name);
+        if (game_library)
+        {
+            Com_MDPrintf("LoadLibrary (%s)\n", name);
+            break;
+        }
+        else
+        {
+            Com_Printf("LoadLibrary (%s):", name);
 
-			path = (char *)dlerror();
-			str_p = strchr(path, ':');   /* skip the path (already shown) */
+            path = (char *)dlerror();
+            str_p = strchr(path, ':'); /* skip the path (already shown) */
 
-			if (str_p == NULL)
-			{
-				str_p = path;
-			}
-			else
-			{
-				str_p++;
-			}
+            if (str_p == NULL)
+            {
+                str_p = path;
+            }
+            else
+            {
+                str_p++;
+            }
 
-			Com_Printf("%s\n", str_p);
+            Com_Printf("%s\n", str_p);
 
-			return NULL;
-		}
-	}
+            return NULL;
+        }
+    }
 
-	GetGameAPI = (void *)dlsym(game_library, "GetGameAPI");
+    GetGameAPI = (void *)dlsym(game_library, "GetGameAPI");
 
-	if (!GetGameAPI)
-	{
-		Sys_UnloadGame();
-		return NULL;
-	}
+    if (!GetGameAPI)
+    {
+        Sys_UnloadGame();
+        return NULL;
+    }
+
+    return GetGameAPI(parms);
 #endif
-
-	return GetGameAPI(parms);
 }
 
 /* ================================================================ */
@@ -602,3 +702,59 @@ Sys_SetWorkDir(char *path)
 
 	return false;
 }
+
+// 3. Add this console command function at the END of system.c, AFTER all other functions,
+//    right before the end of the file (at the same level as other functions):
+
+#ifdef IOS
+void Cmd_ListGameLibs_f(void)
+{
+    @autoreleasepool {
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+        NSBundle *mainBundle = [NSBundle mainBundle];
+        NSString *bundlePath = [mainBundle bundlePath];
+        
+        Com_Printf("\n=== Game Libraries ===\n");
+        Com_Printf("Bundle path: %s\n", [bundlePath UTF8String]);
+        Com_Printf("Documents path: %s\n", [documentsPath UTF8String]);
+        
+        // Check bundle
+        NSArray *bundleDirs = @[@"baseq2", @"xatrix", @"rogue", @"baseaq"];
+        Com_Printf("\nBundle libraries:\n");
+        for (NSString *dir in bundleDirs) {
+            NSString *libPath = [NSString stringWithFormat:@"%@/%@/gamearm64.dylib", bundlePath, dir];
+            if ([fm fileExistsAtPath:libPath]) {
+                Com_Printf("  %s: FOUND\n", [dir UTF8String]);
+            }
+        }
+        
+        // Check Documents
+        Com_Printf("\nDocuments directories:\n");
+        NSError *error = nil;
+        NSArray *contents = [fm contentsOfDirectoryAtPath:documentsPath error:&error];
+        
+        if (!error) {
+            for (NSString *item in contents) {
+                NSString *itemPath = [documentsPath stringByAppendingPathComponent:item];
+                BOOL isDirectory = NO;
+                
+                if ([fm fileExistsAtPath:itemPath isDirectory:&isDirectory] && isDirectory) {
+                    NSString *libPath = [itemPath stringByAppendingPathComponent:@"gamearm64.dylib"];
+                    if ([fm fileExistsAtPath:libPath]) {
+                        NSDictionary *attrs = [fm attributesOfItemAtPath:libPath error:nil];
+                        NSNumber *fileSize = attrs[NSFileSize];
+                        Com_Printf("  %s: gamearm64.dylib (%.2f MB)\n",
+                                   [item UTF8String],
+                                   [fileSize doubleValue] / (1024.0 * 1024.0));
+                    } else {
+                        Com_Printf("  %s: no library\n", [item UTF8String]);
+                    }
+                }
+            }
+        }
+        
+        Com_Printf("======================\n");
+    }
+}
+#endif
