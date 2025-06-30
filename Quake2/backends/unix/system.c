@@ -445,6 +445,13 @@ Sys_GetGameAPI(void *parms)
             }
         } else {
             Com_Printf("No dynamic library found for %s\n", gamedir);
+            
+            // For official expansion packs, use the built-in game code
+            if (strcmp(gamedir, "xatrix") == 0 || strcmp(gamedir, "rogue") == 0)
+            {
+                Com_Printf("Using built-in game code for official expansion pack\n");
+                return GetGameAPI(parms);
+            }
         }
     }
     

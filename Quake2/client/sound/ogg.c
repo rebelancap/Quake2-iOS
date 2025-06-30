@@ -358,13 +358,13 @@ OGG_PlayTrack(int trackNo)
 
 	if ((trackNo < 2) || (trackNo > ogg_maxfileindex))
 	{
-		Com_Printf("OGG_PlayTrack: %d out of range.\n", trackNo);
+		Com_DPrintf("OGG_PlayTrack: %d out of range.\n", trackNo);
 		return;
 	}
 
 	if(ogg_tracks[trackNo] == NULL)
 	{
-		Com_Printf("OGG_PlayTrack: Don't have a .ogg file for track %d\n", trackNo);
+		Com_DPrintf("OGG_PlayTrack: Don't have a .ogg file for track %d\n", trackNo);
 	}
 
 	/* Check running music. */

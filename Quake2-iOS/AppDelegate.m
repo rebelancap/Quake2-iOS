@@ -195,7 +195,7 @@
     [[UIApplication sharedApplication] setStatusBarHidden:YES];
 #endif
     
-    // Create a temporary UIWindow to ensure UIKit is fully initialized
+    // Create temporary UIWindow for controller initialization
     self.uiwindow = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
     self.uiwindow.backgroundColor = [UIColor blackColor];
     UIViewController *tempVC = [[UIViewController alloc] init];
@@ -203,7 +203,7 @@
     self.uiwindow.rootViewController = tempVC;
     [self.uiwindow makeKeyAndVisible];
     
-    // Show a loading message
+    // Show loading message
     UILabel *loadingLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 300, 50)];
     loadingLabel.center = tempVC.view.center;
     loadingLabel.text = @"Initializing...";
@@ -211,7 +211,7 @@
     loadingLabel.textAlignment = NSTextAlignmentCenter;
     [tempVC.view addSubview:loadingLabel];
     
-    // Set up notifications FIRST
+    // Set up notifications
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(controllerDidConnect:)
                                                  name:GCControllerDidConnectNotification
@@ -222,37 +222,28 @@
                                                  name:GCControllerDidDisconnectNotification
                                                object:nil];
     
-    // Initialize GameController framework with a shorter delay
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        NSLog(@"AppDelegate: Initializing GameController framework after delay...");
+    // Increased initial delay from 0.1 to 0.15 seconds
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        NSLog(@"AppDelegate: Initializing GameController framework...");
         
-        // Force controller discovery
+        // Start discovery
         [GCController startWirelessControllerDiscoveryWithCompletionHandler:^{
             NSLog(@"AppDelegate: Controller discovery completed");
         }];
         
         // Check for controllers
         NSArray *controllers = [GCController controllers];
-        NSLog(@"AppDelegate: Initial check: %lu controllers", (unsigned long)controllers.count);
+        NSLog(@"AppDelegate: Found %lu controllers", (unsigned long)controllers.count);
         
-        if (controllers.count > 0) {
-            for (GCController *controller in controllers) {
-                NSLog(@"AppDelegate: Found controller: %@", controller.vendorName);
+        // Increased second delay from 0.1 to 0.2 seconds
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            // Double-check for controllers that might have been slow to register
+            NSArray *controllersRecheck = [GCController controllers];
+            if (controllersRecheck.count > controllers.count) {
+                NSLog(@"AppDelegate: Found additional controllers on recheck: %lu", (unsigned long)controllersRecheck.count);
             }
-            // Found controller, launch immediately
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [self launchGame];
-            });
-        } else {
-            // No controller found yet, wait a bit more for wired controllers
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                NSArray *controllersSecondCheck = [GCController controllers];
-                NSLog(@"AppDelegate: Second check: %lu controllers", (unsigned long)controllersSecondCheck.count);
-                
-                // Launch game regardless (controller might connect later via notification)
-                [self launchGame];
-            });
-        }
+            [self launchGame];
+        });
     });
 }
 
@@ -260,167 +251,136 @@
     // Get launch parameters
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     NSString *launchMod = [defaults stringForKey:@"launchMod"];
+    NSString *launchMap = [defaults stringForKey:@"launchMap"];
     
-    // Check for game data FIRST, before anything else
+    // Quick validation
     NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *baseq2Path = [documentsPath stringByAppendingPathComponent:@"baseq2"];
-    
-    // Always need baseq2
-    BOOL baseq2Exists = NO;
     NSFileManager *fm = [NSFileManager defaultManager];
-    if ([fm fileExistsAtPath:baseq2Path]) {
-        // Check for any valid pak file (pak0.pak, pak0.pkz, pak0.pk3)
-        NSString *pak0Path = [baseq2Path stringByAppendingPathComponent:@"pak0.pak"];
-        NSString *pak0PkzPath = [baseq2Path stringByAppendingPathComponent:@"pak0.pkz"];
-        NSString *pak0Pk3Path = [baseq2Path stringByAppendingPathComponent:@"pak0.pk3"];
-        
-        baseq2Exists = [fm fileExistsAtPath:pak0Path] ||
-                       [fm fileExistsAtPath:pak0PkzPath] ||
-                       [fm fileExistsAtPath:pak0Pk3Path];
-    }
     
-    // Check if mod exists (if launching a mod)
-    BOOL modExists = YES; // Assume true unless we're loading a mod
-    NSString *missingFolder = nil;
-    
-    if (!baseq2Exists) {
-        missingFolder = @"baseq2";
-    }
-    else if (launchMod && launchMod.length > 0) {
-        NSString *modPath = [documentsPath stringByAppendingPathComponent:launchMod];
-        
-        // Special handling for AQtion
-        if ([launchMod isEqualToString:@"baseaq"]) {
-            NSString *pak0Path = [modPath stringByAppendingPathComponent:@"pak0.pkz"];
-            NSString *pak1Path = [modPath stringByAppendingPathComponent:@"pak1.pkz"];
-            modExists = [fm fileExistsAtPath:pak0Path] && [fm fileExistsAtPath:pak1Path];
-        } else {
-            // Generic mod check
-            NSString *modPak0Path = [modPath stringByAppendingPathComponent:@"pak0.pak"];
-            NSString *modPak0PkzPath = [modPath stringByAppendingPathComponent:@"pak0.pkz"];
-            NSString *modPak0Pk3Path = [modPath stringByAppendingPathComponent:@"pak0.pk3"];
-            
-            modExists = [fm fileExistsAtPath:modPak0Path] ||
-                        [fm fileExistsAtPath:modPak0PkzPath] ||
-                        [fm fileExistsAtPath:modPak0Pk3Path];
-        }
-        
-        if (!modExists) {
-            missingFolder = launchMod;
-        }
-    }
-    
-    if (!baseq2Exists || !modExists) {
-        // Create a simple window and show alert
-        NSString *message;
-        if (!baseq2Exists) {
-            message = @"Game data missing!\n\n"
-                      "Please copy the game folders to the Documents directory:\n\n"
-                      "Required:\n"
-                      "• baseq2 folder with pak0.pak\n\n"
-                      "Optional:\n"
-                      "• xatrix (The Reckoning)\n"
-                      "• rogue (Ground Zero)\n"
-                      "• baseaq (AQtion)\n\n"
-                      "Use the Files app or macOS Finder to transfer the folders.";
-        } else {
-            // Mod-specific message
-            NSString *modName = launchMod;
-            if ([launchMod isEqualToString:@"xatrix"]) {
-                modName = @"The Reckoning";
-            } else if ([launchMod isEqualToString:@"rogue"]) {
-                modName = @"Ground Zero";
-            } else if ([launchMod isEqualToString:@"baseaq"]) {
-                modName = @"AQtion";
-            }
-            
-            NSString *expectedFiles = @"pak0.pak";
-            if ([launchMod isEqualToString:@"baseaq"]) {
-                expectedFiles = @"pak0.pkz and pak1.pkz";
-            }
-            
-            message = [NSString stringWithFormat:@"%@ data missing!\n\n"
-                                                 "The folder '%@' was not found in Documents or is incomplete.\n\n"
-                                                 "To play %@, please copy the '%@' folder to Documents.\n\n"
-                                                 "The folder should contain %@.",
-                                                 modName, missingFolder, modName, missingFolder, expectedFiles];
-        }
-        
-        UIAlertController *alert = [UIAlertController
-            alertControllerWithTitle:@"Game Data Missing"
-            message:message
-            preferredStyle:UIAlertControllerStyleAlert];
-        
-        UIAlertAction *okAction = [UIAlertAction
-            actionWithTitle:@"OK"
-            style:UIAlertActionStyleDefault
-            handler:^(UIAlertAction * _Nonnull action) {
-                // Clear the mod selection so next launch is vanilla
-                [defaults removeObjectForKey:@"launchMod"];
-                [defaults synchronize];
-                exit(0);
-            }];
-        
-        [alert addAction:okAction];
-        
-        [self.uiwindow.rootViewController presentViewController:alert animated:YES completion:nil];
-        
-        // Don't continue to game launch
+    // Check baseq2 exists
+    NSString *baseq2Path = [documentsPath stringByAppendingPathComponent:@"baseq2"];
+    if (![fm fileExistsAtPath:baseq2Path]) {
+        [self showMissingDataAlert:@"baseq2"];
         return;
     }
     
-    // If we get here, all required game data exists, so launch the game
-    dispatch_async(dispatch_get_main_queue(), ^{
-        // Get launch parameters from defaults (set by URL scheme or Quick Action)
-        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-        NSString *launchMod = [defaults stringForKey:@"launchMod"];
-        NSString *launchMap = [defaults stringForKey:@"launchMap"];
+    // Check mod exists if launching with mod
+    if (launchMod && launchMod.length > 0) {
+        NSString *modPath = [documentsPath stringByAppendingPathComponent:launchMod];
+        BOOL modValid = NO;
         
-        // Start with basic args
-        NSMutableArray *args = [NSMutableArray arrayWithObject:@"quake2"];
-        
-        // Add retexturing support for PNG fallback
-        [args addObject:@"+set"];
-        [args addObject:@"gl_retexturing"];
-        [args addObject:@"1"];
-        
-        // Add mod if specified
-        if (launchMod && launchMod.length > 0) {
-            [args addObject:@"+set"];
-            [args addObject:@"game"];
-            [args addObject:launchMod];
+        if ([fm fileExistsAtPath:modPath]) {
+            // Special handling for AQtion
+            if ([launchMod isEqualToString:@"baseaq"]) {
+                NSString *pak0Path = [modPath stringByAppendingPathComponent:@"pak0.pkz"];
+                NSString *pak1Path = [modPath stringByAppendingPathComponent:@"pak1.pkz"];
+                modValid = [fm fileExistsAtPath:pak0Path] && [fm fileExistsAtPath:pak1Path];
+            } else {
+                // Check for standard pak files
+                NSString *pak0Path = [modPath stringByAppendingPathComponent:@"pak0.pak"];
+                NSString *pak0PkzPath = [modPath stringByAppendingPathComponent:@"pak0.pkz"];
+                NSString *pak0Pk3Path = [modPath stringByAppendingPathComponent:@"pak0.pk3"];
+                
+                modValid = [fm fileExistsAtPath:pak0Path] ||
+                           [fm fileExistsAtPath:pak0PkzPath] ||
+                           [fm fileExistsAtPath:pak0Pk3Path];
+            }
         }
         
-        // Add map if specified
-        if (launchMap && launchMap.length > 0) {
-            [args addObject:@"+map"];
-            [args addObject:launchMap];
+        if (!modValid) {
+            [self showMissingDataAlert:launchMod];
+            return;
+        }
+    }
+    
+    // Build args
+    NSMutableArray *args = [NSMutableArray arrayWithObject:@"quake2"];
+    
+    [args addObjectsFromArray:@[@"+set", @"gl_retexturing", @"1"]];
+    
+    if (launchMod && launchMod.length > 0) {
+        [args addObjectsFromArray:@[@"+set", @"game", launchMod]];
+    }
+    
+    if (launchMap && launchMap.length > 0) {
+        [args addObjectsFromArray:@[@"+map", launchMap]];
+    }
+    
+    // Clear launch parameters
+    [defaults removeObjectForKey:@"launchMod"];
+    [defaults removeObjectForKey:@"launchMap"];
+    [defaults synchronize];
+    
+    // Convert to C args
+    int argc = (int)[args count];
+    char **argv = (char **)malloc(sizeof(char *) * (argc + 1));
+    
+    for (int i = 0; i < argc; i++) {
+        argv[i] = strdup([args[i] UTF8String]);
+    }
+    argv[argc] = NULL;
+    
+    NSLog(@"Launching Quake2 with %d args", argc);
+    
+    // Call Quake 2 main directly
+    extern int Sys_Startup(int argc, char **argv);
+    Sys_Startup(argc, argv);
+}
+
+- (void)showMissingDataAlert:(NSString *)missingFolder {
+    NSString *message;
+    
+    if ([missingFolder isEqualToString:@"baseq2"]) {
+        message = @"Game data missing!\n\n"
+                  "Please copy the game folders to the Documents directory:\n\n"
+                  "Required:\n"
+                  "• baseq2 folder with pak0.pak\n\n"
+                  "Optional:\n"
+                  "• xatrix (The Reckoning)\n"
+                  "• rogue (Ground Zero)\n"
+                  "• baseaq (AQtion)\n\n"
+                  "Use the Files app or macOS Finder to transfer the folders.";
+    } else {
+        // Mod-specific message
+        NSString *displayName = missingFolder;
+        NSString *expectedFiles = @"game files";
+        
+        if ([missingFolder isEqualToString:@"xatrix"]) {
+            displayName = @"The Reckoning";
+            expectedFiles = @"pak0.pak";
+        } else if ([missingFolder isEqualToString:@"rogue"]) {
+            displayName = @"Ground Zero";
+            expectedFiles = @"pak0.pak";
+        } else if ([missingFolder isEqualToString:@"baseaq"]) {
+            displayName = @"AQtion";
+            expectedFiles = @"pak0.pkz and pak1.pkz";
         }
         
-        // Clear launch parameters after use
-        [defaults removeObjectForKey:@"launchMod"];
-        [defaults removeObjectForKey:@"launchMap"];
-        [defaults synchronize];
-        
-        // Convert to C args
-        int argc = (int)[args count];
-        char **argv = (char **)malloc(sizeof(char *) * (argc + 1));
-        
-        for (int i = 0; i < argc; i++) {
-            NSString *arg = args[i];
-            argv[i] = strdup([arg UTF8String]);
-        }
-        argv[argc] = NULL;
-        
-        NSLog(@"Launching Quake2 with args:");
-        for (int i = 0; i < argc; i++) {
-            NSLog(@"  argv[%d]: %s", i, argv[i]);
-        }
-        
-        // Call the real Quake 2 main
-        extern int Sys_Startup(int argc, char **argv);
-        Sys_Startup(argc, argv);
-    });
+        message = [NSString stringWithFormat:@"%@ data missing!\n\n"
+                                             "The folder '%@' was not found in Documents or is incomplete.\n\n"
+                                             "To play %@, please copy the '%@' folder to Documents.\n\n"
+                                             "The folder should contain %@.",
+                                             displayName, missingFolder, displayName, missingFolder, expectedFiles];
+    }
+    
+    UIAlertController *alert = [UIAlertController
+        alertControllerWithTitle:@"Game Data Missing"
+        message:message
+        preferredStyle:UIAlertControllerStyleAlert];
+    
+    UIAlertAction *okAction = [UIAlertAction
+        actionWithTitle:@"OK"
+        style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction * _Nonnull action) {
+            NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+            [defaults removeObjectForKey:@"launchMod"];
+            [defaults synchronize];
+            exit(0);
+        }];
+    
+    [alert addAction:okAction];
+    
+    [self.uiwindow.rootViewController presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)applicationDidReceiveMemoryWarning:(UIApplication *)application {

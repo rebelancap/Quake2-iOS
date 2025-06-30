@@ -8,11 +8,9 @@
 import UIKit
 import QuartzCore  // For CACurrentMediaTime
 
-// declare the cls variable
 @_silgen_name("cls")
 var cls: client_static_t
 
-// Declare the external variables
 @_silgen_name("joystick_yaw")
 var joystick_yaw: Float
 
@@ -24,6 +22,12 @@ var joystick_forwardmove: Float
 
 @_silgen_name("joystick_sidemove")
 var joystick_sidemove: Float
+
+@_silgen_name("ca_disconnected")
+var ca_disconnected: Int32
+
+@_silgen_name("con")
+var con: console_t
 
 extension SDL_uikitviewcontroller {
     
@@ -462,18 +466,24 @@ extension SDL_uikitviewcontroller {
         return button
     }
     
-    @objc func quitPressed(sender: UIButton!) {
+    @objc func isConsoleVisible() -> Bool {
+        // The console is visible if cls.key_dest is key_console OR if we're disconnected
         let keyDest = cls.key_dest
-        let inConsole = (keyDest == keydest_t(1))  // key_console is 1
+        let inConsole = (keyDest == keydest_t(1))
+        let disconnected = (cls.state == connstate_t(1))  // ca_disconnected is usually 1
         
-        if inConsole {
-            // In console, act as escape key
-            Key_Event(27, qboolean(1), qboolean(1))  // ESC key press
-            Key_Event(27, qboolean(0), qboolean(1))  // ESC key release
+        return inConsole || disconnected
+    }
+    
+    @objc func quitPressed(sender: UIButton!) {
+        if isConsoleVisible() {
+            print("Console is visible - toggling console")
+            "toggleconsole\n".withCString { ptr in
+                Cbuf_AddText(UnsafeMutablePointer(mutating: ptr))
+            }
         } else {
-            // In game, disconnect
-            let command = "disconnect\n"
-            command.withCString { ptr in
+            print("In game - disconnecting")
+            "disconnect\n".withCString { ptr in
                 Cbuf_AddText(UnsafeMutablePointer(mutating: ptr))
             }
         }
@@ -487,8 +497,8 @@ extension SDL_uikitviewcontroller {
         let inConsole = (keyDest == keydest_t(1))   // key_console is 1
         
         // Update Q button text based on state
-        if inConsole {
-            quitButton.setTitle("ESC", for: .normal)
+        if isConsoleVisible() {
+            quitButton.setTitle("Q", for: .normal)  // Tilde is the console key, but leave as Q
         } else {
             quitButton.setTitle("Q", for: .normal)
         }
