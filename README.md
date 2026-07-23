@@ -1,4 +1,4 @@
-## **This port of Quake III for iOS is outdated. <br> Please see my new project: [quake3e-ios](https://github.com/rebelancap/quake3e-ios)**
+## **This port of Quake II for iOS is outdated. <br> Please see my new project: [q2repro-ios](https://github.com/rebelancap/q2repro-ios)**
 
 <br>
 <br>
