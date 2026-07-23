@@ -1,3 +1,10 @@
+## **This port of Quake III for iOS is outdated. <br> Please see my new project: [quake3e-ios](https://github.com/rebelancap/quake3e-ios)**
+
+<br>
+<br>
+<br>
+<br>
+
 <img align="left" width="100" height="100" src="https://raw.githubusercontent.com/tomkidd/Quake2-iOS/master/icon_quake2.png">  
 
 #  Quake II for iOS and tvOS for Apple TV
